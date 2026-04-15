@@ -24,11 +24,13 @@ function ChecklistSection({
   items,
   isAlreadyCompleted,
   onAllChecked,
+  onCheckboxChange,
   completing,
 }: {
   items: string[]
   isAlreadyCompleted: boolean
   onAllChecked: () => void
+  onCheckboxChange?: (checkedCount: number) => void
   completing: boolean
 }) {
   const [checked, setChecked] = useState<Set<number>>(new Set())
@@ -39,6 +41,7 @@ function ChecklistSection({
     setChecked(prev => {
       const next = new Set(prev)
       next.has(i) ? next.delete(i) : next.add(i)
+      onCheckboxChange?.(next.size)
       return next
     })
   }
@@ -199,6 +202,23 @@ export function LessonPlayer({
   const progressPct    = lessons.length > 0 ? (completedCount / lessons.length) * 100 : 0
   const isCompleted    = localCompleted.has(currentLesson.id)
   const allDone        = completedCount === lessons.length
+
+  const saveChecklistProgress = async (checkedCount: number) => {
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user && !localCompleted.has(currentLesson.id)) {
+        await supabase.from("lesson_progress").upsert({
+          user_id:          user.id,
+          lesson_id:        currentLesson.id,
+          completed:        false,
+          progress_seconds: checkedCount,
+        })
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
   const markComplete = async () => {
     setCompleting(true)
@@ -375,9 +395,11 @@ export function LessonPlayer({
 
               {/* ── Checklist ── */}
               <ChecklistSection
+                key={currentLesson.id}
                 items={currentLesson.content_checklist ?? []}
                 isAlreadyCompleted={isCompleted}
                 onAllChecked={markComplete}
+                onCheckboxChange={saveChecklistProgress}
                 completing={completing}
               />
 

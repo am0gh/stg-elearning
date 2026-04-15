@@ -59,6 +59,7 @@ export function LessonForm({ courseId, lessonId, initial }: LessonFormProps) {
   const [muxLoading, setMuxLoading] = useState(false)
   const [muxError, setMuxError] = useState("")
   const [showMuxPicker, setShowMuxPicker] = useState(false)
+  const [muxSearch, setMuxSearch] = useState("")
 
   const set = <K extends keyof LessonFormData>(field: K, value: LessonFormData[K]) =>
     setForm(prev => ({ ...prev, [field]: value }))
@@ -80,8 +81,20 @@ export function LessonForm({ courseId, lessonId, initial }: LessonFormProps) {
 
   const openMuxPicker = () => {
     setShowMuxPicker(true)
+    setMuxSearch("")
     if (muxAssets.length === 0) fetchMuxAssets()
   }
+
+  const closeMuxPicker = () => {
+    setShowMuxPicker(false)
+    setMuxSearch("")
+  }
+
+  const filteredAssets = muxAssets.filter(a => {
+    const q = muxSearch.toLowerCase().trim()
+    if (!q) return true
+    return (a.title?.toLowerCase().includes(q) ?? false) || a.id.toLowerCase().includes(q)
+  })
 
   const selectVideo = (asset: MuxAsset) => {
     if (!asset.playback_id) return
@@ -243,15 +256,26 @@ export function LessonForm({ courseId, lessonId, initial }: LessonFormProps) {
           {showMuxPicker && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
               <div className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-xl border border-zinc-700 bg-zinc-900">
-                <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-                  <h3 className="font-semibold text-white">Select Video from Mux</h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowMuxPicker(false)}
-                    className="text-zinc-500 hover:text-white"
-                  >
-                    ✕
-                  </button>
+                <div className="border-b border-zinc-800 px-5 py-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-white">Select Video from Mux</h3>
+                    <button
+                      type="button"
+                      onClick={closeMuxPicker}
+                      className="text-zinc-500 hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="mt-3">
+                    <input
+                      className={inp}
+                      value={muxSearch}
+                      onChange={e => setMuxSearch(e.target.value)}
+                      placeholder="Search by title or asset ID…"
+                      autoFocus
+                    />
+                  </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4">
@@ -276,8 +300,11 @@ export function LessonForm({ courseId, lessonId, initial }: LessonFormProps) {
                   {!muxLoading && !muxError && muxAssets.length === 0 && (
                     <p className="py-8 text-center text-zinc-500">No ready videos found in Mux.</p>
                   )}
+                  {!muxLoading && !muxError && muxAssets.length > 0 && filteredAssets.length === 0 && (
+                    <p className="py-8 text-center text-zinc-500">No videos match your search.</p>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
-                    {muxAssets.map(asset => (
+                    {filteredAssets.map(asset => (
                       <button
                         key={asset.id}
                         type="button"

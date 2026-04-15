@@ -3,10 +3,10 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase/server"
-import { CheckCircle2, Clock, Lock, Play, PlayCircle, Star } from "lucide-react"
+import { CheckCircle2, Circle, Clock, Lock, Play, PlayCircle, Star } from "lucide-react"
+import type { LessonProgress } from "@/lib/types"
 
 const GOLD = "#C9A227"
 const BLACK = "#0a0a0a"
@@ -47,9 +47,46 @@ export default async function CourseDetailPage({ params }: PageProps) {
     isEnrolled = !!enrollment
   }
 
+  // ── Progress data (enrolled users only) ────────────────────────────────────
+  let progressMap: Record<string, LessonProgress> = {}
+  let resumeLessonId: string | null = null
+
+  if (isEnrolled && user && lessons && lessons.length > 0) {
+    const { data: progressData } = await supabase
+      .from("lesson_progress")
+      .select("*")
+      .in("lesson_id", lessons.map(l => l.id))
+      .eq("user_id", user.id)
+
+    if (progressData) {
+      for (const p of progressData) {
+        progressMap[p.lesson_id] = p
+      }
+    }
+
+    // Resume from first non-completed lesson, fall back to lesson 1
+    resumeLessonId =
+      lessons.find(l => !progressMap[l.id]?.completed)?.id ?? lessons[0].id
+  }
+
+  const completedCount = Object.values(progressMap).filter(p => p.completed).length
+  const totalLessons = lessons?.length ?? 0
+  const overallPct = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0
+
   const totalDuration = lessons?.reduce((acc, l) => acc + l.duration_minutes, 0) ?? 0
   const hours = Math.floor(totalDuration / 60)
   const minutes = totalDuration % 60
+
+  // Label for the CTA button
+  const ctaLabel =
+    !isEnrolled ? "Start Learning"
+    : completedCount === 0 ? "Start Learning"
+    : completedCount === totalLessons ? "Review Course"
+    : "Continue Learning"
+
+  const ctaHref = isEnrolled && resumeLessonId
+    ? `/courses/${id}/learn?lesson=${resumeLessonId}`
+    : `/courses/${id}/learn`
 
   return (
     <div className="flex min-h-screen flex-col" style={{ background: BLACK, color: "white" }}>
@@ -96,7 +133,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Play className="h-4 w-4" />
-                    <span>{lessons?.length ?? 0} lessons</span>
+                    <span>{totalLessons} lessons</span>
                   </div>
                   <span
                     className="rounded px-2 py-0.5 text-xs font-semibold"
@@ -121,7 +158,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              {/* Right: purchase card */}
+              {/* Right: purchase / progress card */}
               <div className="lg:col-span-1">
                 <div
                   className="sticky top-24 overflow-hidden rounded-lg"
@@ -146,22 +183,43 @@ export default async function CourseDetailPage({ params }: PageProps) {
                   </div>
 
                   <div className="p-6">
-                    <div className="mb-5 text-center">
-                      <span className="text-4xl font-black" style={{ color: GOLD }}>
-                        {course.price === 0 ? "Free" : `€${course.price}`}
-                      </span>
-                      {course.price > 0 && (
-                        <span className="ml-2 text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>one-time</span>
-                      )}
-                    </div>
+                    {isEnrolled ? (
+                      /* ── Enrolled: show progress ───────────────────── */
+                      <div className="mb-5">
+                        <div className="mb-1.5 flex items-center justify-between text-sm">
+                          <span style={{ color: "rgba(255,255,255,0.5)" }}>Your progress</span>
+                          <span className="font-bold tabular-nums" style={{ color: GOLD }}>{overallPct}%</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full" style={{ background: "rgba(201,162,39,0.12)" }}>
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${overallPct}%`, background: GOLD }}
+                          />
+                        </div>
+                        <p className="mt-1.5 text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
+                          {completedCount} of {totalLessons} lessons complete
+                        </p>
+                      </div>
+                    ) : (
+                      /* ── Not enrolled: show price ──────────────────── */
+                      <div className="mb-5 text-center">
+                        <span className="text-4xl font-black" style={{ color: GOLD }}>
+                          {course.price === 0 ? "Free" : `€${course.price}`}
+                        </span>
+                        {course.price > 0 && (
+                          <span className="ml-2 text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>one-time</span>
+                        )}
+                      </div>
+                    )}
 
+                    {/* CTA */}
                     <Link
-                      href={`/courses/${id}/learn`}
+                      href={ctaHref}
                       className="flex w-full items-center justify-center gap-2 rounded font-bold"
                       style={{ background: GOLD, color: BLACK, padding: "0.875rem 1rem", fontSize: "1rem" }}
                     >
                       <Play className="h-4 w-4" />
-                      Start Learning
+                      {ctaLabel}
                     </Link>
 
                     {/* What's included */}
@@ -188,55 +246,145 @@ export default async function CourseDetailPage({ params }: PageProps) {
           </div>
         </section>
 
-        {/* ── Lesson list ──────────────────────────────────────────────── */}
+        {/* ── Lesson overview ──────────────────────────────────────────── */}
         <section className="py-14">
           <div className="container mx-auto max-w-7xl px-4">
             <div className="lg:pr-[calc(33.333%+2.5rem)]">
-              <h2 className="mb-2 text-2xl font-black" style={{ color: "white" }}>
-                Course Content
-              </h2>
-              <p className="mb-6 text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
-                {lessons?.length ?? 0} lessons
-                {hours > 0 || minutes > 0 ? ` · ${hours > 0 ? `${hours}h ` : ""}${minutes > 0 ? `${minutes}m` : ""} total` : ""}
-              </p>
+              <div className="mb-6 flex items-end justify-between">
+                <div>
+                  <h2 className="mb-1 text-2xl font-black" style={{ color: "white" }}>
+                    Course Content
+                  </h2>
+                  <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
+                    {totalLessons} lessons
+                    {hours > 0 || minutes > 0 ? ` · ${hours > 0 ? `${hours}h ` : ""}${minutes > 0 ? `${minutes}m` : ""} total` : ""}
+                  </p>
+                </div>
+                {isEnrolled && totalLessons > 0 && (
+                  <span className="text-sm font-bold tabular-nums" style={{ color: GOLD }}>
+                    {completedCount} / {totalLessons} done
+                  </span>
+                )}
+              </div>
 
               <div className="space-y-2">
-                {lessons?.map((lesson, index) => (
-                  <div
-                    key={lesson.id}
-                    className="flex items-center gap-4 rounded-lg p-4 transition-colors"
-                    style={{
-                      border: "1px solid rgba(255,255,255,0.07)",
-                      background: "rgba(255,255,255,0.03)",
-                    }}
-                  >
-                    <div
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold"
-                      style={{ background: "rgba(201,162,39,0.12)", color: GOLD }}
-                    >
-                      {index + 1}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold" style={{ color: "white" }}>{lesson.title}</h3>
-                      {lesson.description && (
-                        <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>{lesson.description}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
-                      <span>{lesson.duration_minutes} min</span>
-                      {lesson.is_free ? (
-                        <span
-                          className="rounded px-2 py-0.5 text-xs font-bold"
-                          style={{ background: "rgba(201,162,39,0.15)", color: GOLD }}
+                {lessons?.map((lesson, index) => {
+                  // Per-lesson completion percentage
+                  const prog = progressMap[lesson.id]
+                  const lessonPct = prog?.completed
+                    ? 100
+                    : prog?.progress_seconds && (lesson.content_checklist?.length ?? 0) > 0
+                      ? Math.min(100, Math.round((prog.progress_seconds / lesson.content_checklist!.length) * 100))
+                      : 0
+
+                  const rowContent = (
+                    <>
+                      {/* Number / status icon */}
+                      {isEnrolled ? (
+                        <div
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                          style={{
+                            background: lessonPct === 100 ? GOLD : "rgba(201,162,39,0.12)",
+                            color: lessonPct === 100 ? BLACK : GOLD,
+                          }}
                         >
-                          Free preview
-                        </span>
-                      ) : !isEnrolled ? (
-                        <Lock className="h-4 w-4" />
-                      ) : null}
+                          {lessonPct === 100
+                            ? <CheckCircle2 className="h-4 w-4" />
+                            : <span className="text-sm font-bold">{index + 1}</span>
+                          }
+                        </div>
+                      ) : (
+                        <div
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+                          style={{ background: "rgba(201,162,39,0.12)", color: GOLD }}
+                        >
+                          {index + 1}
+                        </div>
+                      )}
+
+                      {/* Title + description */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold" style={{ color: "white" }}>{lesson.title}</h3>
+                        {lesson.description && (
+                          <p className="text-sm truncate" style={{ color: "rgba(255,255,255,0.45)" }}>
+                            {lesson.description}
+                          </p>
+                        )}
+                        {/* Inline progress bar for in-progress lessons */}
+                        {isEnrolled && lessonPct > 0 && lessonPct < 100 && (
+                          <div className="mt-1.5 h-1 w-24 overflow-hidden rounded-full" style={{ background: "rgba(201,162,39,0.12)" }}>
+                            <div
+                              className="h-full rounded-full"
+                              style={{ width: `${lessonPct}%`, background: GOLD }}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right side: duration + progress badge */}
+                      <div className="flex shrink-0 items-center gap-3 text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
+                        <span>{lesson.duration_minutes} min</span>
+                        {isEnrolled ? (
+                          lessonPct === 100 ? (
+                            <span
+                              className="rounded px-2 py-0.5 text-xs font-bold"
+                              style={{ background: "rgba(201,162,39,0.15)", color: GOLD }}
+                            >
+                              Complete
+                            </span>
+                          ) : lessonPct > 0 ? (
+                            <span
+                              className="rounded px-2 py-0.5 text-xs font-bold tabular-nums"
+                              style={{ background: "rgba(201,162,39,0.1)", color: GOLD }}
+                            >
+                              {lessonPct}%
+                            </span>
+                          ) : (
+                            <Circle className="h-4 w-4" style={{ color: "rgba(255,255,255,0.2)" }} />
+                          )
+                        ) : lesson.is_free ? (
+                          <span
+                            className="rounded px-2 py-0.5 text-xs font-bold"
+                            style={{ background: "rgba(201,162,39,0.15)", color: GOLD }}
+                          >
+                            Free preview
+                          </span>
+                        ) : (
+                          <Lock className="h-4 w-4" />
+                        )}
+                      </div>
+                    </>
+                  )
+
+                  const rowStyle = {
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    background: "rgba(255,255,255,0.03)",
+                  }
+
+                  // Enrolled users can click to jump to a specific lesson
+                  if (isEnrolled) {
+                    return (
+                      <Link
+                        key={lesson.id}
+                        href={`/courses/${id}/learn?lesson=${lesson.id}`}
+                        className="flex items-center gap-4 rounded-lg p-4 transition-colors hover:border-amber-500/30 hover:bg-white/5"
+                        style={rowStyle}
+                      >
+                        {rowContent}
+                      </Link>
+                    )
+                  }
+
+                  return (
+                    <div
+                      key={lesson.id}
+                      className="flex items-center gap-4 rounded-lg p-4"
+                      style={rowStyle}
+                    >
+                      {rowContent}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           </div>
