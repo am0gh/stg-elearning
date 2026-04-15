@@ -3,18 +3,19 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import MuxPlayer from "@mux/mux-player-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { createClient } from "@/lib/supabase/client"
 import type { Course, Lesson, LessonProgress } from "@/lib/types"
-import { 
+import {
   ArrowLeft,
-  ArrowRight, 
-  CheckCircle2, 
-  ChevronLeft, 
-  Circle, 
-  GraduationCap, 
+  ArrowRight,
+  CheckCircle2,
+  ChevronLeft,
+  Circle,
+  GraduationCap,
   Menu,
   Play,
   X
@@ -114,22 +115,24 @@ export function LessonPlayer({
       <div className="flex flex-1 overflow-hidden">
         {/* Video Player */}
         <div className="flex flex-1 flex-col">
+          {/* Mux Video Player */}
           <div className="relative aspect-video w-full bg-black">
             {currentLesson.video_url ? (
-              <iframe
-                src={currentLesson.video_url}
+              <MuxPlayer
+                playbackId={currentLesson.video_url}
+                accentColor="#C9A227"
                 className="absolute inset-0 h-full w-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
+                style={{ aspectRatio: "16/9" }}
               />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-white">
-                <p>Video not available</p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/50">
+                <Play className="h-10 w-10" />
+                <p className="text-sm">Video not yet available</p>
               </div>
             )}
           </div>
-          
-          {/* Lesson Info */}
+
+          {/* Lesson Info + Text Content */}
           <div className="flex-1 overflow-auto p-6">
             <div className="mx-auto max-w-3xl">
               <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
@@ -137,14 +140,23 @@ export function LessonPlayer({
                 <span>•</span>
                 <span>{currentLesson.duration_minutes} min</span>
               </div>
-              
-              <h2 className="mb-4 text-2xl font-bold text-foreground">
+
+              <h2 className="mb-3 text-2xl font-bold text-foreground">
                 {currentLesson.title}
               </h2>
-              
+
               <p className="mb-6 text-muted-foreground">
                 {currentLesson.description}
               </p>
+
+              {/* Text content (study notes, tips, etc.) */}
+              {(currentLesson as any).content && (
+                <div
+                  className="mb-6 rounded-lg border border-border bg-muted/30 p-5 text-sm leading-relaxed text-foreground whitespace-pre-wrap"
+                >
+                  {(currentLesson as any).content}
+                </div>
+              )}
               
               <div className="flex flex-wrap items-center gap-4">
                 {!isCurrentCompleted && (
