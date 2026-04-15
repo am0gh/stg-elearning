@@ -7,8 +7,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Salsa te Gusta — Online Salsa Courses',
-  description: 'Self-paced video courses taught by a National Dutch Salsa Champion. Learn salsa at home, watch anywhere, anytime.',
+  title: 'Start Salsa — Online Salsa Courses',
+  description: 'Self-paced video courses. Learn salsa at home, watch anywhere, anytime.',
   generator: 'v0.app',
   icons: {
     icon: [

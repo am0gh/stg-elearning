@@ -45,7 +45,7 @@ function LoginForm() {
         <CardHeader className="text-center">
           <Link href="/" className="mx-auto mb-4 block">
             <span className="text-2xl font-black" style={{ color: GOLD }}>
-              Salsa te Gusta
+              Start Salsa
             </span>
           </Link>
           <CardTitle className="text-2xl">Welcome back</CardTitle>

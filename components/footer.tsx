@@ -43,7 +43,7 @@ export function Footer() {
           <div className="md:col-span-1">
             <Link href="/">
               <span className="text-xl font-bold" style={{ color: GOLD }}>
-                Salsa te Gusta
+                Start Salsa
               </span>
             </Link>
             <p className="mt-3 text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
@@ -165,7 +165,7 @@ export function Footer() {
           className="mt-12 pt-6 text-center text-sm"
           style={{ borderTop: "1px solid rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.3)" }}
         >
-          © 2026 Salsa te Gusta Online Academy
+          © 2026 Start Salsa Online Academy
         </div>
       </div>
     </footer>

@@ -63,7 +63,7 @@ export default function HomePage() {
             </h1>
 
             <p className="mx-auto mb-10 max-w-2xl text-lg md:text-xl" style={{ color: "rgba(255,255,255,0.7)" }}>
-              Self-paced video courses taught by a National Dutch Salsa Champion.
+              Self-paced video courses you can watch at home, on your own schedule.
               Watch anywhere, anytime.
             </p>
 
@@ -250,7 +250,7 @@ export default function HomePage() {
                 {
                   emoji: "🎥",
                   title: "HD Video Lessons",
-                  desc: "Recorded by a National Dutch Salsa Champion — clear, close-up, and easy to follow at any speed.",
+                  desc: "Professionally recorded lessons — clear, close-up, and easy to follow at any speed.",
                 },
                 {
                   emoji: "🎵",

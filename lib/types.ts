@@ -23,6 +23,10 @@ export interface Lesson {
   duration_minutes: number
   order_index: number
   is_free: boolean
+  content_intro: string | null        // context shown above the video
+  content_notes: string | null        // main notes shown below the video
+  content_tips: string[] | null       // practice tip bullet points
+  content_checklist: string[] | null  // student checklist — all must be ticked to complete
   created_at: string
   updated_at: string
 }

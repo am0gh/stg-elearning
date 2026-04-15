@@ -4,8 +4,6 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import MuxPlayer from "@mux/mux-player-react"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { createClient } from "@/lib/supabase/client"
 import type { Course, Lesson, LessonProgress } from "@/lib/types"
@@ -18,14 +16,165 @@ import {
   GraduationCap,
   Menu,
   Play,
-  X
+  X,
 } from "lucide-react"
 
+// ─── Checklist sub-component ──────────────────────────────────────────────────
+function ChecklistSection({
+  items,
+  isAlreadyCompleted,
+  onAllChecked,
+  completing,
+}: {
+  items: string[]
+  isAlreadyCompleted: boolean
+  onAllChecked: () => void
+  completing: boolean
+}) {
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  const allTicked = items.length > 0 && checked.size === items.length
+
+  const toggle = (i: number) => {
+    if (isAlreadyCompleted) return
+    setChecked(prev => {
+      const next = new Set(prev)
+      next.has(i) ? next.delete(i) : next.add(i)
+      return next
+    })
+  }
+
+  // No checklist items → fall back to a simple manual button
+  if (items.length === 0) {
+    return (
+      <div className="mt-2 mb-6">
+        {!isAlreadyCompleted ? (
+          <button
+            onClick={onAllChecked}
+            disabled={completing}
+            className="flex items-center gap-2 rounded px-5 py-2.5 text-sm font-bold transition-opacity disabled:opacity-50"
+            style={{ background: GOLD, color: BLACK }}
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            {completing ? "Saving…" : "Mark as Complete"}
+          </button>
+        ) : (
+          <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: GOLD }}>
+            <CheckCircle2 className="h-4 w-4" />
+            Lesson completed
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="mb-6">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: WHITE_30 }}>
+          Before you move on
+        </p>
+        <span className="text-xs font-semibold tabular-nums" style={{ color: allTicked ? GOLD : WHITE_30 }}>
+          {checked.size} / {items.length}
+        </span>
+      </div>
+
+      {/* Progress bar */}
+      <div className="mb-4 h-1 overflow-hidden rounded-full" style={{ background: GOLD_DIM }}>
+        <div
+          className="h-full rounded-full transition-all duration-300"
+          style={{ width: `${items.length > 0 ? (checked.size / items.length) * 100 : 0}%`, background: GOLD }}
+        />
+      </div>
+
+      {/* Items */}
+      <ul className="space-y-2">
+        {items.map((item, i) => {
+          const done = isAlreadyCompleted || checked.has(i)
+          return (
+            <li key={i}>
+              <button
+                onClick={() => toggle(i)}
+                className="flex w-full items-start gap-3 rounded-lg px-4 py-3 text-left transition-colors"
+                style={{
+                  background: done ? GOLD_DIM : WHITE_08,
+                  border: `1px solid ${done ? GOLD_MID : BORDER}`,
+                  cursor: isAlreadyCompleted ? "default" : "pointer",
+                }}
+              >
+                {/* Checkbox */}
+                <div
+                  className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded"
+                  style={{
+                    background: done ? GOLD : "transparent",
+                    border: `1.5px solid ${done ? GOLD : WHITE_30}`,
+                  }}
+                >
+                  {done && (
+                    <svg className="h-2.5 w-2.5" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4l3 3 5-6" stroke={BLACK} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
+                <span
+                  className="text-sm leading-snug"
+                  style={{
+                    color: done ? WHITE_50 : WHITE,
+                    textDecoration: done ? "line-through" : "none",
+                  }}
+                >
+                  {item}
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+
+      {/* Complete button — appears when all ticked */}
+      <div className="mt-4">
+        {isAlreadyCompleted ? (
+          <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: GOLD }}>
+            <CheckCircle2 className="h-4 w-4" />
+            Lesson completed
+          </div>
+        ) : allTicked ? (
+          <button
+            onClick={onAllChecked}
+            disabled={completing}
+            className="flex items-center gap-2 rounded px-5 py-2.5 text-sm font-bold transition-opacity disabled:opacity-50"
+            style={{ background: GOLD, color: BLACK }}
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            {completing ? "Saving…" : "Complete Lesson →"}
+          </button>
+        ) : (
+          <p className="text-xs" style={{ color: WHITE_30 }}>
+            Tick all items above to complete this lesson
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Brand tokens ──────────────────────────────────────────────────────────────
+const GOLD        = "#C9A227"
+const GOLD_DIM    = "rgba(201,162,39,0.12)"
+const GOLD_MID    = "rgba(201,162,39,0.2)"
+const BLACK       = "#0a0a0a"
+const PURPLE      = "#3D0057"
+const WHITE       = "#ffffff"
+const WHITE_70    = "rgba(255,255,255,0.7)"
+const WHITE_50    = "rgba(255,255,255,0.5)"
+const WHITE_30    = "rgba(255,255,255,0.3)"
+const WHITE_08    = "rgba(255,255,255,0.08)"
+const BORDER      = "rgba(255,255,255,0.08)"
+
 interface LessonPlayerProps {
-  course: Course
-  lessons: Lesson[]
-  currentLesson: Lesson
-  progressMap: Record<string, LessonProgress>
+  course:         Course
+  lessons:        Lesson[]
+  currentLesson:  Lesson
+  progressMap:    Record<string, LessonProgress>
   initialProgress: number
 }
 
@@ -37,232 +186,335 @@ export function LessonPlayer({
   initialProgress,
 }: LessonPlayerProps) {
   const router = useRouter()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [completing, setCompleting] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [completing, setCompleting]   = useState(false)
+  const [localCompleted, setLocalCompleted] = useState<Set<string>>(
+    new Set(Object.values(progressMap).filter(p => p.completed).map(p => p.lesson_id))
+  )
 
-  const currentIndex = lessons.findIndex(l => l.id === currentLesson.id)
-  const prevLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null
-  const nextLesson = currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null
-  
-  const completedCount = Object.values(progressMap).filter(p => p.completed).length
-  const progressPercent = (completedCount / lessons.length) * 100
+  const currentIndex   = lessons.findIndex(l => l.id === currentLesson.id)
+  const prevLesson     = currentIndex > 0 ? lessons[currentIndex - 1] : null
+  const nextLesson     = currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null
+  const completedCount = localCompleted.size
+  const progressPct    = lessons.length > 0 ? (completedCount / lessons.length) * 100 : 0
+  const isCompleted    = localCompleted.has(currentLesson.id)
+  const allDone        = completedCount === lessons.length
 
   const markComplete = async () => {
     setCompleting(true)
+    setLocalCompleted(prev => new Set([...prev, currentLesson.id]))
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) return
-
-      await supabase
-        .from("lesson_progress")
-        .upsert({
-          user_id: user.id,
-          lesson_id: currentLesson.id,
-          completed: true,
+      if (user) {
+        await supabase.from("lesson_progress").upsert({
+          user_id:      user.id,
+          lesson_id:    currentLesson.id,
+          completed:    true,
           completed_at: new Date().toISOString(),
         })
-
-      router.refresh()
-      
-      if (nextLesson) {
-        router.push(`/courses/${course.id}/learn?lesson=${nextLesson.id}`)
       }
-    } catch (error) {
-      console.error("Error marking complete:", error)
+      if (nextLesson) router.push(`/courses/${course.id}/learn?lesson=${nextLesson.id}`)
+    } catch (err) {
+      console.error(err)
     } finally {
       setCompleting(false)
     }
   }
 
-  const isCurrentCompleted = progressMap[currentLesson.id]?.completed
-
   return (
-    <div className="flex h-screen flex-col bg-background">
-      {/* Top Bar */}
-      <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href={`/courses/${course.id}`}>
-              <ChevronLeft className="h-5 w-5" />
-            </Link>
-          </Button>
-          <div className="hidden sm:block">
-            <h1 className="text-sm font-medium text-foreground line-clamp-1">{course.title}</h1>
-            <p className="text-xs text-muted-foreground">
-              {completedCount} of {lessons.length} lessons completed
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-4">
-          <div className="hidden items-center gap-2 sm:flex">
-            <Progress value={progressPercent} className="h-2 w-32" />
-            <span className="text-sm text-muted-foreground">{Math.round(progressPercent)}%</span>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+    <div className="flex h-screen flex-col" style={{ background: BLACK, color: WHITE }}>
+
+      {/* ── Top bar ─────────────────────────────────────────────────── */}
+      <header
+        className="flex h-14 shrink-0 items-center justify-between px-4"
+        style={{ borderBottom: `1px solid ${BORDER}`, background: "rgba(255,255,255,0.02)" }}
+      >
+        {/* Back + branding */}
+        <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href={`/courses/${course.id}`}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded transition-opacity hover:opacity-70"
+            style={{ color: WHITE_50 }}
           >
-            {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
+            <ChevronLeft className="h-5 w-5" />
+          </Link>
+          <span className="hidden shrink-0 text-sm font-black tracking-tight sm:block" style={{ color: GOLD }}>
+            Start Salsa
+          </span>
+          <span className="hidden sm:block" style={{ color: WHITE_30 }}>/</span>
+          <span className="hidden min-w-0 truncate text-sm sm:block" style={{ color: WHITE_50 }}>
+            {course.title}
+          </span>
         </div>
+
+        {/* Progress */}
+        <div className="hidden flex-1 items-center justify-center gap-3 px-8 sm:flex">
+          <div className="h-1 w-36 overflow-hidden rounded-full" style={{ background: GOLD_DIM }}>
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${progressPct}%`, background: GOLD }}
+            />
+          </div>
+          <span className="text-xs font-bold tabular-nums" style={{ color: GOLD }}>
+            {completedCount} / {lessons.length}
+          </span>
+        </div>
+
+        {/* Lesson list toggle */}
+        <button
+          className="flex h-8 items-center gap-2 rounded px-3 text-xs font-semibold transition-colors"
+          style={{ border: `1px solid ${BORDER}`, color: WHITE_50 }}
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+        >
+          {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          <span className="hidden sm:inline">Lessons</span>
+        </button>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Video Player */}
-        <div className="flex flex-1 flex-col">
-          {/* Mux Video Player */}
-          <div className="relative aspect-video w-full bg-black">
+      {/* ── Body ────────────────────────────────────────────────────── */}
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
+
+        {/* ── Split panel: video left, notes right ─────────────────── */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row">
+
+          {/* VIDEO PANEL — left on desktop, top on mobile */}
+          <div
+            className="flex shrink-0 items-center justify-center bg-black lg:w-[58%]"
+            style={{ borderRight: `1px solid ${BORDER}` }}
+          >
             {currentLesson.video_url ? (
-              <MuxPlayer
-                playbackId={currentLesson.video_url}
-                accentColor="#C9A227"
-                className="absolute inset-0 h-full w-full"
-                style={{ aspectRatio: "16/9" }}
-              />
+              /* Aspect-ratio wrapper so video is always 16:9 */
+              <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
+                <MuxPlayer
+                  playbackId={currentLesson.video_url}
+                  accentColor={GOLD}
+                  className="absolute inset-0"
+                  style={{ width: "100%", height: "100%", display: "block" }}
+                />
+              </div>
             ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/50">
-                <Play className="h-10 w-10" />
-                <p className="text-sm">Video not yet available</p>
+              <div className="flex h-48 w-full flex-col items-center justify-center gap-3" style={{ color: WHITE_30 }}>
+                <div
+                  className="flex h-16 w-16 items-center justify-center rounded-full"
+                  style={{ background: GOLD_DIM, border: `1px solid ${GOLD_MID}` }}
+                >
+                  <Play className="h-7 w-7" style={{ color: GOLD }} />
+                </div>
+                <p className="text-sm">Video coming soon</p>
               </div>
             )}
           </div>
 
-          {/* Lesson Info + Text Content */}
-          <div className="flex-1 overflow-auto p-6">
-            <div className="mx-auto max-w-3xl">
-              <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
-                <span>Lesson {currentIndex + 1} of {lessons.length}</span>
-                <span>•</span>
+          {/* NOTES PANEL — right on desktop, below on mobile */}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="mx-auto max-w-lg px-6 py-7">
+
+              {/* Meta */}
+              <div
+                className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest"
+                style={{ color: GOLD }}
+              >
+                <span>Lesson {currentIndex + 1}</span>
+                <span style={{ opacity: 0.4 }}>·</span>
                 <span>{currentLesson.duration_minutes} min</span>
               </div>
 
-              <h2 className="mb-3 text-2xl font-bold text-foreground">
+              {/* Title */}
+              <h2
+                className="mb-3 text-xl font-black leading-tight tracking-tight"
+                style={{ color: WHITE }}
+              >
                 {currentLesson.title}
               </h2>
 
-              <p className="mb-6 text-muted-foreground">
-                {currentLesson.description}
-              </p>
+              {/* Description */}
+              {currentLesson.description && (
+                <p className="mb-5 text-sm leading-relaxed" style={{ color: WHITE_70 }}>
+                  {currentLesson.description}
+                </p>
+              )}
 
-              {/* Text content (study notes, tips, etc.) */}
-              {(currentLesson as any).content && (
-                <div
-                  className="mb-6 rounded-lg border border-border bg-muted/30 p-5 text-sm leading-relaxed text-foreground whitespace-pre-wrap"
-                >
-                  {(currentLesson as any).content}
+              {/* Intro */}
+              {currentLesson.content_intro && (
+                <p className="mb-5 text-sm leading-relaxed" style={{ color: GOLD }}>
+                  {currentLesson.content_intro}
+                </p>
+              )}
+
+              {/* Lesson notes — plain white, no card */}
+              {currentLesson.content_notes && (
+                <div className="mb-6">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: WHITE_30 }}>
+                    Notes
+                  </p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: WHITE }}>
+                    {currentLesson.content_notes}
+                  </p>
                 </div>
               )}
-              
-              <div className="flex flex-wrap items-center gap-4">
-                {!isCurrentCompleted && (
-                  <Button onClick={markComplete} disabled={completing} className="gap-2">
-                    <CheckCircle2 className="h-4 w-4" />
-                    {completing ? "Marking..." : "Mark as Complete"}
-                  </Button>
-                )}
-                
-                {isCurrentCompleted && (
-                  <div className="flex items-center gap-2 text-sm text-accent">
-                    <CheckCircle2 className="h-5 w-5" />
-                    Completed
-                  </div>
-                )}
-                
-                <div className="flex gap-2">
-                  {prevLesson && (
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/courses/${course.id}/learn?lesson=${prevLesson.id}`}>
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Previous
-                      </Link>
-                    </Button>
-                  )}
-                  {nextLesson && (
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/courses/${course.id}/learn?lesson=${nextLesson.id}`}>
-                        Next
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
-                  )}
+
+              {/* Practice tips — numbered, plain */}
+              {currentLesson.content_tips && currentLesson.content_tips.length > 0 && (
+                <div className="mb-6">
+                  <p className="mb-3 text-xs font-bold uppercase tracking-widest" style={{ color: WHITE_30 }}>
+                    Practice Tips
+                  </p>
+                  <ul className="space-y-2.5">
+                    {currentLesson.content_tips.map((tip, i) => (
+                      <li key={i} className="flex items-start gap-3 text-sm" style={{ color: WHITE }}>
+                        <span className="mt-0.5 shrink-0 text-xs font-black tabular-nums" style={{ color: GOLD }}>
+                          {String(i + 1).padStart(2, "0")}
+                        </span>
+                        {tip}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
+              )}
+
+              {/* ── Checklist ── */}
+              <ChecklistSection
+                items={currentLesson.content_checklist ?? []}
+                isAlreadyCompleted={isCompleted}
+                onAllChecked={markComplete}
+                completing={completing}
+              />
+
+              {/* Nav */}
+              <div className="mt-6 flex gap-2">
+                {prevLesson && (
+                  <Link
+                    href={`/courses/${course.id}/learn?lesson=${prevLesson.id}`}
+                    className="flex items-center gap-1.5 rounded px-4 py-2.5 text-sm font-semibold"
+                    style={{ border: `1px solid ${BORDER}`, color: WHITE_50 }}
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    Prev
+                  </Link>
+                )}
+                {nextLesson && (
+                  <Link
+                    href={`/courses/${course.id}/learn?lesson=${nextLesson.id}`}
+                    className="flex items-center gap-1.5 rounded px-4 py-2.5 text-sm font-semibold"
+                    style={{ border: `1px solid rgba(201,162,39,0.35)`, color: GOLD }}
+                  >
+                    Next
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                )}
               </div>
+
+              {/* Completion banner */}
+              {allDone && (
+                <div
+                  className="mt-8 flex items-start gap-4 rounded-lg p-5"
+                  style={{ background: `${PURPLE}55`, border: "1px solid rgba(61,0,87,0.7)" }}
+                >
+                  <GraduationCap className="mt-0.5 h-6 w-6 shrink-0" style={{ color: GOLD }} />
+                  <div>
+                    <p className="font-black" style={{ color: WHITE }}>
+                      ¡Felicidades — Level 1 complete!
+                    </p>
+                    <p className="mt-1 text-sm" style={{ color: WHITE_70 }}>
+                      You've finished every lesson. Keep dancing.
+                    </p>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         </div>
 
-        {/* Sidebar */}
+        {/* ── Lesson list sidebar (overlay) ───────────────────────── */}
         <aside
-          className={`absolute right-0 top-14 z-40 h-[calc(100vh-3.5rem)] w-80 border-l border-border bg-card transition-transform lg:relative lg:top-0 lg:h-auto lg:translate-x-0 ${
+          className={`absolute right-0 top-0 z-50 flex h-full w-72 flex-col transition-transform duration-200 ${
             sidebarOpen ? "translate-x-0" : "translate-x-full"
           }`}
+          style={{ background: "#111", borderLeft: `1px solid ${BORDER}` }}
         >
-          <div className="flex h-full flex-col">
-            <div className="border-b border-border p-4">
-              <h3 className="font-semibold text-foreground">Course Content</h3>
-              <p className="text-sm text-muted-foreground">
-                {lessons.length} lessons
+          {/* Sidebar header */}
+          <div className="flex items-center justify-between px-4 py-4" style={{ borderBottom: `1px solid ${BORDER}` }}>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: WHITE_30 }}>
+                All Lessons
+              </p>
+              <p className="mt-0.5 text-sm font-semibold" style={{ color: WHITE_50 }}>
+                {completedCount} of {lessons.length} done
               </p>
             </div>
-            
-            <ScrollArea className="flex-1">
-              <div className="p-2">
-                {lessons.map((lesson, index) => {
-                  const isCompleted = progressMap[lesson.id]?.completed
-                  const isCurrent = lesson.id === currentLesson.id
-                  
-                  return (
-                    <Link
-                      key={lesson.id}
-                      href={`/courses/${course.id}/learn?lesson=${lesson.id}`}
-                      onClick={() => setSidebarOpen(false)}
-                      className={`flex items-start gap-3 rounded-lg p-3 transition-colors ${
-                        isCurrent
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      <div className="mt-0.5 shrink-0">
-                        {isCompleted ? (
-                          <CheckCircle2 className="h-5 w-5 text-accent" />
-                        ) : isCurrent ? (
-                          <Play className="h-5 w-5" />
-                        ) : (
-                          <Circle className="h-5 w-5" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium line-clamp-2 ${isCurrent ? "text-primary" : "text-foreground"}`}>
-                          {index + 1}. {lesson.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {lesson.duration_minutes} min
-                        </p>
-                      </div>
-                    </Link>
-                  )
-                })}
-              </div>
-            </ScrollArea>
-            
-            {completedCount === lessons.length && (
-              <div className="border-t border-border p-4">
-                <div className="flex items-center gap-3 rounded-lg bg-accent/20 p-3 text-accent">
-                  <GraduationCap className="h-6 w-6" />
-                  <div>
-                    <p className="font-medium">Course Completed!</p>
-                    <p className="text-xs opacity-80">Congratulations!</p>
-                  </div>
-                </div>
-              </div>
-            )}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="flex h-7 w-7 items-center justify-center rounded transition-opacity hover:opacity-70"
+              style={{ color: WHITE_50 }}
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
+
+          {/* Progress bar */}
+          <div className="px-4 py-2.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
+            <div className="h-1 overflow-hidden rounded-full" style={{ background: GOLD_DIM }}>
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${progressPct}%`, background: GOLD }}
+              />
+            </div>
+          </div>
+
+          {/* List */}
+          <ScrollArea className="flex-1">
+            <div className="py-1">
+              {lessons.map((lesson, index) => {
+                const done    = localCompleted.has(lesson.id)
+                const current = lesson.id === currentLesson.id
+                return (
+                  <Link
+                    key={lesson.id}
+                    href={`/courses/${course.id}/learn?lesson=${lesson.id}`}
+                    onClick={() => setSidebarOpen(false)}
+                    className="flex items-start gap-3 px-4 py-3 transition-colors"
+                    style={{
+                      background:   current ? GOLD_DIM : "transparent",
+                      borderLeft:   current ? `2px solid ${GOLD}` : "2px solid transparent",
+                    }}
+                  >
+                    <div className="mt-0.5 shrink-0">
+                      {done ? (
+                        <CheckCircle2 className="h-4 w-4" style={{ color: GOLD }} />
+                      ) : current ? (
+                        <Play className="h-4 w-4" style={{ color: GOLD }} />
+                      ) : (
+                        <Circle className="h-4 w-4" style={{ color: WHITE_30 }} />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className="line-clamp-2 text-sm font-medium leading-snug"
+                        style={{ color: current ? WHITE : WHITE_70 }}
+                      >
+                        {index + 1}. {lesson.title}
+                      </p>
+                      <p className="mt-0.5 text-xs" style={{ color: WHITE_30 }}>
+                        {lesson.duration_minutes} min
+                        {lesson.is_free && (
+                          <span
+                            className="ml-2 rounded px-1.5 py-0.5 text-xs font-bold"
+                            style={{ background: GOLD_DIM, color: GOLD }}
+                          >
+                            Free
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </ScrollArea>
         </aside>
+
       </div>
     </div>
   )

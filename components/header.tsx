@@ -70,7 +70,7 @@ export function Header() {
             className="text-xl font-bold tracking-wide"
             style={{ color: GOLD }}
           >
-            Salsa te Gusta
+            Start Salsa
           </span>
         </Link>
 

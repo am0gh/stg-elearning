@@ -39,7 +39,7 @@ export default function AuthErrorPage() {
             className="text-sm transition-colors"
             style={{ color: "rgba(255,255,255,0.45)" }}
           >
-            ← Return to Salsa te Gusta
+            ← Return to Start Salsa
           </Link>
         </CardFooter>
       </Card>

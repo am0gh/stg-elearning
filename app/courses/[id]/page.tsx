@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase/server"
 import { CheckCircle2, Clock, Lock, Play, PlayCircle, Star } from "lucide-react"
-import { EnrollButton } from "./enroll-button"
 
 const GOLD = "#C9A227"
 const BLACK = "#0a0a0a"
@@ -117,7 +116,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
                   </Avatar>
                   <div>
                     <p className="font-semibold" style={{ color: "white" }}>{course.instructor_name}</p>
-                    <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>National Dutch Salsa Champion</p>
+                    <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>Lead Instructor</p>
                   </div>
                 </div>
               </div>
@@ -156,21 +155,14 @@ export default async function CourseDetailPage({ params }: PageProps) {
                       )}
                     </div>
 
-                    {isEnrolled ? (
-                      <Button
-                        className="w-full gap-2 font-bold"
-                        size="lg"
-                        style={{ background: GOLD, color: BLACK }}
-                        asChild
-                      >
-                        <Link href={`/courses/${id}/learn`}>
-                          <Play className="h-4 w-4" />
-                          Continue Watching
-                        </Link>
-                      </Button>
-                    ) : (
-                      <EnrollButton courseId={id} isLoggedIn={!!user} />
-                    )}
+                    <Link
+                      href={`/courses/${id}/learn`}
+                      className="flex w-full items-center justify-center gap-2 rounded font-bold"
+                      style={{ background: GOLD, color: BLACK, padding: "0.875rem 1rem", fontSize: "1rem" }}
+                    >
+                      <Play className="h-4 w-4" />
+                      Start Learning
+                    </Link>
 
                     {/* What's included */}
                     <div className="mt-6 space-y-2.5">
