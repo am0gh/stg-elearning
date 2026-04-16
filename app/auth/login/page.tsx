@@ -10,7 +10,7 @@ import { FieldGroup, Field, FieldLabel } from "@/components/ui/field"
 import { Spinner } from "@/components/ui/spinner"
 import { createClient } from "@/lib/supabase/client"
 
-const GOLD = "#C9A227"
+const GOLD = "var(--brand-gold)"
 
 function LoginForm() {
   const [email, setEmail] = useState("")
@@ -19,7 +19,10 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectTo = searchParams.get("redirect") ?? "/dashboard"
+  const rawRedirect = searchParams.get("redirect") ?? "/dashboard"
+  const redirectTo = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')
+    ? rawRedirect
+    : "/dashboard"
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,7 +48,7 @@ function LoginForm() {
         <CardHeader className="text-center">
           <Link href="/" className="mx-auto mb-4 block">
             <span className="text-2xl font-black" style={{ color: GOLD }}>
-              Start Salsa
+              Salsa te Gusta
             </span>
           </Link>
           <CardTitle className="text-2xl">Welcome back</CardTitle>
@@ -76,6 +79,15 @@ function LoginForm() {
                   required
                 />
               </Field>
+              <div className="text-right">
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-xs font-medium hover:underline"
+                  style={{ color: "rgba(255,255,255,0.5)" }}
+                >
+                  Forgot password?
+                </Link>
+              </div>
             </FieldGroup>
 
             {error && (

@@ -10,7 +10,7 @@ interface CourseCardProps {
   course: Course
 }
 
-const GOLD = "#C9A227"
+const GOLD = "var(--brand-gold)"
 const PURPLE = "#3D0057"
 
 const levelStyles: Record<string, { label: string; bg: string; color: string }> = {
@@ -26,15 +26,24 @@ export function CourseCard({ course }: CourseCardProps) {
     <Link href={`/courses/${course.id}`} className="block">
       <Card
         className="group h-full overflow-hidden transition-all duration-300 hover:-translate-y-1"
-        style={{ borderColor: "rgba(201,162,39,0.2)" }}
+        style={{ borderColor: "color-mix(in srgb, var(--brand-gold) 20%, transparent)" }}
       >
         <div className="relative aspect-video overflow-hidden">
-          <Image
-            src={course.thumbnail_url ?? "/placeholder.svg"}
-            alt={course.title}
-            fill
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
-          />
+          {course.thumbnail_url ? (
+            <Image
+              src={course.thumbnail_url}
+              alt={course.title}
+              fill
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+          ) : (
+            <div
+              className="absolute inset-0 flex items-center justify-center"
+              style={{ background: "linear-gradient(135deg, #1a0a2e 0%, #3D0057 60%, #0a0a0a 100%)" }}
+            >
+              <span className="text-5xl select-none" aria-hidden="true">💃</span>
+            </div>
+          )}
           <span
             className="absolute left-3 top-3 rounded px-2.5 py-1 text-xs font-bold"
             style={{ background: level.bg, color: level.color }}

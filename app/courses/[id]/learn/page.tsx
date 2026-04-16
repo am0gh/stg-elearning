@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { LessonPlayer } from "./lesson-player"
 
@@ -12,18 +12,8 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
   const { lesson: lessonId } = await searchParams
   const supabase = await createClient()
 
-  // Auth check — disabled for testing so anyone can access lessons directly.
-  // TODO: re-enable before launch by uncommenting the block below.
+  // Auth check
   const { data: { user } } = await supabase.auth.getUser()
-  /*
-  if (!user) {
-    redirect(`/auth/login?redirect=/courses/${id}/learn`)
-  }
-  const { data: enrollment } = await supabase
-    .from("enrollments").select("id")
-    .eq("user_id", user.id).eq("course_id", id).single()
-  if (!enrollment) redirect(`/courses/${id}`)
-  */
 
   // Get course
   const { data: course } = await supabase
@@ -43,19 +33,41 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
 
   if (!lessons || lessons.length === 0) notFound()
 
-  // Get progress if logged in
+  const currentLessonId = lessonId ?? lessons[0].id
+  const requestedLesson = lessons.find(l => l.id === currentLessonId) ?? lessons[0]
+
+  // Allow unenrolled (or logged-out) users to view free preview lessons
+  const isFreeLesson = requestedLesson.is_free
+
+  if (!isFreeLesson) {
+    // Paid lesson — require login
+    if (!user) {
+      redirect(`/auth/login?redirect=/courses/${id}/learn?lesson=${currentLessonId}`)
+    }
+    // And require enrollment
+    const { data: enrollment } = await supabase
+      .from("enrollments")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("course_id", id)
+      .single()
+    if (!enrollment) {
+      redirect(`/courses/${id}`)
+    }
+  }
+
+  // Get progress (only if logged in)
   const { data: progress } = user
     ? await supabase
         .from("lesson_progress")
         .select("*")
         .eq("user_id", user.id)
         .in("lesson_id", lessons.map(l => l.id))
-    : { data: [] }
+    : { data: null }
 
   const progressMap = new Map(progress?.map(p => [p.lesson_id, p]) ?? [])
 
-  const currentLessonId = lessonId ?? lessons[0].id
-  const currentLesson = lessons.find(l => l.id === currentLessonId) ?? lessons[0]
+  const currentLesson = requestedLesson
   const currentProgress = progressMap.get(currentLesson.id)
 
   return (

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Search } from "lucide-react"
 import Link from "next/link"
 
-const GOLD = "#C9A227"
+const GOLD = "var(--brand-gold)"
 
 interface PageProps {
   searchParams: Promise<{ level?: string; search?: string }>
@@ -84,7 +84,7 @@ export default async function CoursesPage({ searchParams }: PageProps) {
           {/* Search + level filters */}
           <div
             className="mb-8 flex flex-col gap-4 rounded-lg border p-4 md:flex-row md:items-center md:justify-between"
-            style={{ borderColor: "rgba(201,162,39,0.2)", background: "rgba(255,255,255,0.03)" }}
+            style={{ borderColor: "color-mix(in srgb, var(--brand-gold) 20%, transparent)", background: "rgba(255,255,255,0.03)" }}
           >
             <form className="flex flex-1 gap-2" action="/courses">
               <div className="relative flex-1">
@@ -108,7 +108,7 @@ export default async function CoursesPage({ searchParams }: PageProps) {
                     style={
                       params.level === value
                         ? { background: GOLD, color: "#0a0a0a", border: "none" }
-                        : { borderColor: "rgba(201,162,39,0.35)", color: "rgba(255,255,255,0.6)" }
+                        : { borderColor: "color-mix(in srgb, var(--brand-gold) 35%, transparent)", color: "rgba(255,255,255,0.6)" }
                     }
                   >
                     {label}
@@ -141,7 +141,7 @@ function CourseGridSkeleton() {
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="rounded-lg border" style={{ borderColor: "rgba(201,162,39,0.15)" }}>
+        <div key={i} className="rounded-lg border" style={{ borderColor: "color-mix(in srgb, var(--brand-gold) 15%, transparent)" }}>
           <div className="aspect-video animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
           <div className="space-y-3 p-4">
             <div className="h-5 w-3/4 animate-pulse rounded" style={{ background: "rgba(255,255,255,0.06)" }} />

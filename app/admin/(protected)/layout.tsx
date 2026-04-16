@@ -1,23 +1,16 @@
-import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { BookOpen, LayoutDashboard } from "lucide-react"
+import { BookOpen, FileText, LayoutDashboard, Paintbrush, Tag } from "lucide-react"
 import { SignOutButton } from "./sign-out-button"
-
-async function isAuthenticated() {
-  const cookieStore = await cookies()
-  const session = cookieStore.get("admin_session")
-  const adminPassword = process.env.ADMIN_PASSWORD
-  return !!adminPassword && session?.value === adminPassword
-}
+import { isAdmin } from "@/lib/auth/admin"
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const authed = await isAuthenticated()
+  const authed = await isAdmin()
   if (!authed) redirect("/admin/login")
 
   // Fetch courses for sidebar
@@ -33,7 +26,7 @@ export default async function AdminLayout({
       <aside className="flex w-56 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900">
         {/* Logo */}
         <div className="border-b border-zinc-800 px-4 py-4">
-          <span className="text-sm font-black text-amber-400">Start Salsa</span>
+          <span className="text-sm font-black text-amber-400">Salsa te Gusta</span>
           <span className="ml-2 rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-500">
             Admin
           </span>
@@ -47,6 +40,30 @@ export default async function AdminLayout({
           >
             <LayoutDashboard className="h-4 w-4" />
             Dashboard
+          </Link>
+
+          <Link
+            href="/admin/design"
+            className="flex items-center gap-2.5 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-white"
+          >
+            <Paintbrush className="h-4 w-4" />
+            Design
+          </Link>
+
+          <Link
+            href="/admin/content"
+            className="flex items-center gap-2.5 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-white"
+          >
+            <FileText className="h-4 w-4" />
+            Content
+          </Link>
+
+          <Link
+            href="/admin/discounts"
+            className="flex items-center gap-2.5 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-white"
+          >
+            <Tag className="h-4 w-4" />
+            Discounts
           </Link>
 
           <div className="mt-3 px-4 pb-1">

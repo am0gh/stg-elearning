@@ -23,7 +23,7 @@ export default function AuthErrorPage() {
             <a
               href="mailto:contact@salsategusta.nl"
               className="underline"
-              style={{ color: "#C9A227" }}
+              style={{ color: "var(--brand-gold)" }}
             >
               contact@salsategusta.nl
             </a>{" "}

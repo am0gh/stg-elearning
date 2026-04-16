@@ -161,9 +161,9 @@ function ChecklistSection({
 }
 
 // ─── Brand tokens ──────────────────────────────────────────────────────────────
-const GOLD        = "#C9A227"
-const GOLD_DIM    = "rgba(201,162,39,0.12)"
-const GOLD_MID    = "rgba(201,162,39,0.2)"
+const GOLD        = "var(--brand-gold)"
+const GOLD_DIM    = "color-mix(in srgb, var(--brand-gold) 12%, transparent)"
+const GOLD_MID    = "color-mix(in srgb, var(--brand-gold) 20%, transparent)"
 const BLACK       = "#0a0a0a"
 const PURPLE      = "#3D0057"
 const WHITE       = "#ffffff"
@@ -260,7 +260,7 @@ export function LessonPlayer({
             <ChevronLeft className="h-5 w-5" />
           </Link>
           <span className="hidden shrink-0 text-sm font-black tracking-tight sm:block" style={{ color: GOLD }}>
-            Start Salsa
+            Salsa te Gusta
           </span>
           <span className="hidden sm:block" style={{ color: WHITE_30 }}>/</span>
           <span className="hidden min-w-0 truncate text-sm sm:block" style={{ color: WHITE_50 }}>
@@ -408,8 +408,8 @@ export function LessonPlayer({
                 {prevLesson && (
                   <Link
                     href={`/courses/${course.id}/learn?lesson=${prevLesson.id}`}
-                    className="flex items-center gap-1.5 rounded px-4 py-2.5 text-sm font-semibold"
-                    style={{ border: `1px solid ${BORDER}`, color: WHITE_50 }}
+                    className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold"
+                    style={{ border: `1px solid ${BORDER}`, color: WHITE_50, borderRadius: "var(--btn-radius)" }}
                   >
                     <ArrowLeft className="h-3.5 w-3.5" />
                     Prev
@@ -418,8 +418,8 @@ export function LessonPlayer({
                 {nextLesson && (
                   <Link
                     href={`/courses/${course.id}/learn?lesson=${nextLesson.id}`}
-                    className="flex items-center gap-1.5 rounded px-4 py-2.5 text-sm font-semibold"
-                    style={{ border: `1px solid rgba(201,162,39,0.35)`, color: GOLD }}
+                    className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold"
+                    style={{ border: `1px solid color-mix(in srgb, var(--brand-gold) 35%, transparent)`, color: GOLD, borderRadius: "var(--btn-radius)" }}
                   >
                     Next
                     <ArrowRight className="h-3.5 w-3.5" />

@@ -17,14 +17,37 @@ import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 
-const GOLD = "#C9A227"
+const GOLD = "var(--brand-gold)"
 
-export function Header() {
+interface HeaderProps {
+  /** Pre-fetched from server on the homepage; other pages fetch client-side */
+  navLogo?: string
+  navCta?: string
+  logoUrl?: string
+}
+
+export function Header({ navLogo: initialLogo, navCta: initialCta, logoUrl: initialLogoUrl }: HeaderProps = {}) {
   const pathname = usePathname()
   const router = useRouter()
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [navLogo, setNavLogo]   = useState(initialLogo    ?? "Start Salsa")
+  const [navCta, setNavCta]     = useState(initialCta     ?? "Start Learning")
+  const [logoUrl, setLogoUrl]   = useState(initialLogoUrl ?? "")
+
+  // On pages where nav content wasn't server-fetched, load it client-side
+  useEffect(() => {
+    if (initialLogo && initialCta) return // already provided by server
+    fetch("/api/content")
+      .then(r => r.json())
+      .then(d => {
+        if (d.nav_logo) setNavLogo(d.nav_logo)
+        if (d.nav_cta)  setNavCta(d.nav_cta)
+        if (d.logo_url !== undefined) setLogoUrl(d.logo_url)
+      })
+      .catch(() => {}) // keep defaults on error
+  }, [initialLogo, initialCta])
 
   useEffect(() => {
     const supabase = createClient()
@@ -61,17 +84,27 @@ export function Header() {
   return (
     <header
       className="sticky top-0 z-50 w-full border-b"
-      style={{ background: "#0a0a0a", borderColor: "rgba(201,162,39,0.15)" }}
+      style={{ background: "#0a0a0a", borderColor: "color-mix(in srgb, var(--brand-gold) 15%, transparent)" }}
     >
       <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
-          <span
-            className="text-xl font-bold tracking-wide"
-            style={{ color: GOLD }}
-          >
-            Start Salsa
-          </span>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl}
+              alt={navLogo}
+              className="h-9 w-auto object-contain"
+              style={{ maxWidth: 160 }}
+            />
+          ) : (
+            <span
+              className="text-xl font-bold tracking-wide"
+              style={{ color: GOLD }}
+            >
+              {navLogo}
+            </span>
+          )}
         </Link>
 
         {/* Desktop Nav */}
@@ -98,7 +131,7 @@ export function Header() {
         {/* Right side */}
         <div className="flex items-center gap-3">
           {loading ? (
-            <div className="h-9 w-28 animate-pulse rounded" style={{ background: "rgba(201,162,39,0.15)" }} />
+            <div className="h-9 w-28 animate-pulse rounded" style={{ background: "color-mix(in srgb, var(--brand-gold) 15%, transparent)" }} />
           ) : user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -151,10 +184,10 @@ export function Header() {
               </Link>
               <Link
                 href="/courses"
-                className="rounded px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90"
-                style={{ background: GOLD, color: "#0a0a0a" }}
+                className="px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90"
+                style={{ background: GOLD, color: "#0a0a0a", borderRadius: "var(--btn-radius)" }}
               >
-                Start Learning
+                {navCta}
               </Link>
             </div>
           )}
@@ -173,7 +206,7 @@ export function Header() {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="border-t md:hidden" style={{ borderColor: "rgba(201,162,39,0.15)", background: "#0a0a0a" }}>
+        <div className="border-t md:hidden" style={{ borderColor: "color-mix(in srgb, var(--brand-gold) 15%, transparent)", background: "#0a0a0a" }}>
           <nav className="container mx-auto flex flex-col gap-1 px-4 py-4">
             {navLinks.map((link) => (
               <Link
@@ -199,10 +232,10 @@ export function Header() {
                 <Link
                   href="/courses"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="mt-1 rounded px-3 py-2.5 text-center text-sm font-semibold"
-                  style={{ background: GOLD, color: "#0a0a0a" }}
+                  className="mt-1 px-3 py-2.5 text-center text-sm font-semibold"
+                  style={{ background: GOLD, color: "#0a0a0a", borderRadius: "var(--btn-radius)" }}
                 >
-                  Start Learning
+                  {navCta}
                 </Link>
               </>
             )}

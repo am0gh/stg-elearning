@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft } from "lucide-react"
+import { ChevronLeft, Upload, X } from "lucide-react"
 
 export default function EditCoursePage() {
   const router = useRouter()
@@ -13,6 +13,9 @@ export default function EditCoursePage() {
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -46,6 +49,34 @@ export default function EditCoursePage() {
 
   const set = (field: string, value: any) =>
     setForm(prev => ({ ...prev, [field]: value }))
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setUploadError("")
+
+    const data = new FormData()
+    data.append("file", file)
+
+    const res = await fetch("/api/admin/upload-image", {
+      method: "POST",
+      body: data,
+    })
+
+    const json = await res.json()
+    setUploading(false)
+
+    if (!res.ok) {
+      setUploadError(json.error ?? "Upload failed")
+      return
+    }
+
+    set("thumbnail_url", json.url)
+    // Reset the input so the same file can be re-selected if needed
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -113,8 +144,56 @@ export default function EditCoursePage() {
           <input className={input} value={form.instructor_name} onChange={e => set("instructor_name", e.target.value)} />
         </Field>
 
-        <Field label="Thumbnail URL">
-          <input className={input} value={form.thumbnail_url} onChange={e => set("thumbnail_url", e.target.value)} placeholder="https://..." />
+        <Field label="Thumbnail Image">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={handleImageUpload}
+          />
+
+          {/* Image preview */}
+          {form.thumbnail_url && (
+            <div className="relative mb-2 overflow-hidden rounded-lg border border-zinc-700">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={form.thumbnail_url}
+                alt="Course thumbnail preview"
+                className="h-40 w-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => set("thumbnail_url", "")}
+                className="absolute right-2 top-2 rounded-full bg-black/70 p-1 text-white hover:bg-black"
+                title="Remove image"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Upload button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="mb-2 flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 hover:border-amber-500 hover:text-white disabled:opacity-50"
+          >
+            <Upload className="h-4 w-4" />
+            {uploading ? "Uploading…" : form.thumbnail_url ? "Replace image" : "Upload image"}
+          </button>
+
+          {uploadError && <p className="mb-2 text-xs text-red-400">{uploadError}</p>}
+
+          {/* Fallback manual URL input */}
+          <input
+            className={input}
+            value={form.thumbnail_url}
+            onChange={e => set("thumbnail_url", e.target.value)}
+            placeholder="Or paste an image URL…"
+          />
         </Field>
 
         <Field label="Duration (hours)">

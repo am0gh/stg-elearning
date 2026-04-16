@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 
-const GOLD = "#C9A227"
+const GOLD = "var(--brand-gold)"
 
 // Simple SVG social icons — no external icon lib dependency
 function InstagramIcon() {
@@ -35,7 +35,7 @@ function LinkedInIcon() {
 
 export function Footer() {
   return (
-    <footer style={{ background: "#0a0a0a", borderTop: "1px solid rgba(201,162,39,0.15)" }}>
+    <footer style={{ background: "#0a0a0a", borderTop: "1px solid color-mix(in srgb, var(--brand-gold) 15%, transparent)" }}>
       <div className="container mx-auto max-w-7xl px-4 pt-16 pb-8">
         {/* Top: logo + 3 columns */}
         <div className="grid gap-10 md:grid-cols-4">
@@ -43,7 +43,7 @@ export function Footer() {
           <div className="md:col-span-1">
             <Link href="/">
               <span className="text-xl font-bold" style={{ color: GOLD }}>
-                Start Salsa
+                Salsa te Gusta
               </span>
             </Link>
             <p className="mt-3 text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
@@ -52,9 +52,9 @@ export function Footer() {
             {/* Social icons */}
             <div className="mt-5 flex gap-4">
               {[
-                { href: "https://instagram.com", icon: <InstagramIcon />, label: "Instagram" },
-                { href: "https://facebook.com", icon: <FacebookIcon />, label: "Facebook" },
-                { href: "https://linkedin.com", icon: <LinkedInIcon />, label: "LinkedIn" },
+                { href: "https://www.instagram.com/salsategusta", icon: <InstagramIcon />, label: "Instagram" },
+                { href: "https://www.facebook.com/salsategusta", icon: <FacebookIcon />, label: "Facebook" },
+                { href: "https://www.linkedin.com/company/salsategusta", icon: <LinkedInIcon />, label: "LinkedIn" },
               ].map(({ href, icon, label }) => (
                 <a
                   key={label}
@@ -165,7 +165,7 @@ export function Footer() {
           className="mt-12 pt-6 text-center text-sm"
           style={{ borderTop: "1px solid rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.3)" }}
         >
-          © 2026 Start Salsa Online Academy
+          © {new Date().getFullYear()} Salsa te Gusta
         </div>
       </div>
     </footer>

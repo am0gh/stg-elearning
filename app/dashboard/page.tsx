@@ -124,12 +124,21 @@ export default async function DashboardPage() {
                   return (
                     <Card key={enrollment.id} className="overflow-hidden">
                       <div className="relative aspect-video">
-                        <Image
-                          src={course.thumbnail_url ?? "/placeholder.svg"}
-                          alt={course.title}
-                          fill
-                          className="object-cover"
-                        />
+                        {course.thumbnail_url ? (
+                          <Image
+                            src={course.thumbnail_url}
+                            alt={course.title}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div
+                            className="absolute inset-0 flex items-center justify-center"
+                            style={{ background: "linear-gradient(135deg, #1a0a2e 0%, #3D0057 60%, #0a0a0a 100%)" }}
+                          >
+                            <span className="text-5xl select-none" aria-hidden="true">💃</span>
+                          </div>
+                        )}
                         {isCompleted && (
                           <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                             <Badge className="gap-1 bg-accent text-accent-foreground">

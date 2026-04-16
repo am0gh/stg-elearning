@@ -10,7 +10,7 @@ import { FieldGroup, Field, FieldLabel } from "@/components/ui/field"
 import { Spinner } from "@/components/ui/spinner"
 import { createClient } from "@/lib/supabase/client"
 
-const GOLD = "#C9A227"
+const GOLD = "var(--brand-gold)"
 
 export default function SignUpPage() {
   const [fullName, setFullName] = useState("")
@@ -52,7 +52,7 @@ export default function SignUpPage() {
         <CardHeader className="text-center">
           <Link href="/" className="mx-auto mb-4 block">
             <span className="text-2xl font-black" style={{ color: GOLD }}>
-              Start Salsa
+              Salsa te Gusta
             </span>
           </Link>
           <CardTitle className="text-2xl">Create your account</CardTitle>

@@ -7,8 +7,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase/server"
 import { CheckCircle2, Circle, Clock, Lock, Play, PlayCircle, Star } from "lucide-react"
 import type { LessonProgress } from "@/lib/types"
+import { EnrollButton } from "./enroll-button"
 
-const GOLD = "#C9A227"
+const GOLD = "var(--brand-gold)"
 const BLACK = "#0a0a0a"
 
 interface PageProps {
@@ -96,7 +97,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
         {/* ── Hero ─────────────────────────────────────────────────────── */}
         <section
           className="py-14"
-          style={{ background: "rgba(201,162,39,0.05)", borderBottom: "1px solid rgba(201,162,39,0.12)" }}
+          style={{ background: "color-mix(in srgb, var(--brand-gold) 5%, transparent)", borderBottom: "1px solid color-mix(in srgb, var(--brand-gold) 12%, transparent)" }}
         >
           <div className="container mx-auto max-w-7xl px-4">
             <div className="grid gap-10 lg:grid-cols-3">
@@ -137,7 +138,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
                   </div>
                   <span
                     className="rounded px-2 py-0.5 text-xs font-semibold"
-                    style={{ background: "rgba(201,162,39,0.15)", color: GOLD }}
+                    style={{ background: "color-mix(in srgb, var(--brand-gold) 15%, transparent)", color: GOLD }}
                   >
                     Self-paced · 4 months access
                   </span>
@@ -162,16 +163,25 @@ export default async function CourseDetailPage({ params }: PageProps) {
               <div className="lg:col-span-1">
                 <div
                   className="sticky top-24 overflow-hidden rounded-lg"
-                  style={{ border: `1px solid rgba(201,162,39,0.3)`, background: "rgba(255,255,255,0.04)" }}
+                  style={{ border: `1px solid color-mix(in srgb, var(--brand-gold) 30%, transparent)`, background: "rgba(255,255,255,0.04)" }}
                 >
                   {/* Thumbnail with play overlay */}
                   <div className="relative aspect-video">
-                    <Image
-                      src={course.thumbnail_url ?? "/placeholder.svg"}
-                      alt={course.title}
-                      fill
-                      className="object-cover"
-                    />
+                    {course.thumbnail_url ? (
+                      <Image
+                        src={course.thumbnail_url}
+                        alt={course.title}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="absolute inset-0 flex items-center justify-center"
+                        style={{ background: "linear-gradient(135deg, #1a0a2e 0%, #3D0057 60%, #0a0a0a 100%)" }}
+                      >
+                        <span className="text-6xl select-none" aria-hidden="true">💃</span>
+                      </div>
+                    )}
                     <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }}>
                       <div
                         className="flex h-16 w-16 items-center justify-center rounded-full transition-transform hover:scale-110"
@@ -190,7 +200,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
                           <span style={{ color: "rgba(255,255,255,0.5)" }}>Your progress</span>
                           <span className="font-bold tabular-nums" style={{ color: GOLD }}>{overallPct}%</span>
                         </div>
-                        <div className="h-2 overflow-hidden rounded-full" style={{ background: "rgba(201,162,39,0.12)" }}>
+                        <div className="h-2 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--brand-gold) 12%, transparent)" }}>
                           <div
                             className="h-full rounded-full transition-all duration-500"
                             style={{ width: `${overallPct}%`, background: GOLD }}
@@ -213,14 +223,22 @@ export default async function CourseDetailPage({ params }: PageProps) {
                     )}
 
                     {/* CTA */}
-                    <Link
-                      href={ctaHref}
-                      className="flex w-full items-center justify-center gap-2 rounded font-bold"
-                      style={{ background: GOLD, color: BLACK, padding: "0.875rem 1rem", fontSize: "1rem" }}
-                    >
-                      <Play className="h-4 w-4" />
-                      {ctaLabel}
-                    </Link>
+                    {isEnrolled ? (
+                      <Link
+                        href={ctaHref}
+                        className="flex w-full items-center justify-center gap-2 rounded font-bold"
+                        style={{ background: GOLD, color: BLACK, padding: "0.875rem 1rem", fontSize: "1rem" }}
+                      >
+                        <Play className="h-4 w-4" />
+                        {ctaLabel}
+                      </Link>
+                    ) : (
+                      <EnrollButton
+                        courseId={id}
+                        coursePrice={course.price}
+                        isLoggedIn={!!user}
+                      />
+                    )}
 
                     {/* What's included */}
                     <div className="mt-6 space-y-2.5">
@@ -284,7 +302,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
                         <div
                           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
                           style={{
-                            background: lessonPct === 100 ? GOLD : "rgba(201,162,39,0.12)",
+                            background: lessonPct === 100 ? GOLD : "color-mix(in srgb, var(--brand-gold) 12%, transparent)",
                             color: lessonPct === 100 ? BLACK : GOLD,
                           }}
                         >
@@ -296,7 +314,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
                       ) : (
                         <div
                           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold"
-                          style={{ background: "rgba(201,162,39,0.12)", color: GOLD }}
+                          style={{ background: "color-mix(in srgb, var(--brand-gold) 12%, transparent)", color: GOLD }}
                         >
                           {index + 1}
                         </div>
@@ -312,7 +330,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
                         )}
                         {/* Inline progress bar for in-progress lessons */}
                         {isEnrolled && lessonPct > 0 && lessonPct < 100 && (
-                          <div className="mt-1.5 h-1 w-24 overflow-hidden rounded-full" style={{ background: "rgba(201,162,39,0.12)" }}>
+                          <div className="mt-1.5 h-1 w-24 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--brand-gold) 12%, transparent)" }}>
                             <div
                               className="h-full rounded-full"
                               style={{ width: `${lessonPct}%`, background: GOLD }}
@@ -328,14 +346,14 @@ export default async function CourseDetailPage({ params }: PageProps) {
                           lessonPct === 100 ? (
                             <span
                               className="rounded px-2 py-0.5 text-xs font-bold"
-                              style={{ background: "rgba(201,162,39,0.15)", color: GOLD }}
+                              style={{ background: "color-mix(in srgb, var(--brand-gold) 15%, transparent)", color: GOLD }}
                             >
                               Complete
                             </span>
                           ) : lessonPct > 0 ? (
                             <span
                               className="rounded px-2 py-0.5 text-xs font-bold tabular-nums"
-                              style={{ background: "rgba(201,162,39,0.1)", color: GOLD }}
+                              style={{ background: "color-mix(in srgb, var(--brand-gold) 10%, transparent)", color: GOLD }}
                             >
                               {lessonPct}%
                             </span>
@@ -345,7 +363,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
                         ) : lesson.is_free ? (
                           <span
                             className="rounded px-2 py-0.5 text-xs font-bold"
-                            style={{ background: "rgba(201,162,39,0.15)", color: GOLD }}
+                            style={{ background: "color-mix(in srgb, var(--brand-gold) 15%, transparent)", color: GOLD }}
                           >
                             Free preview
                           </span>
@@ -361,8 +379,8 @@ export default async function CourseDetailPage({ params }: PageProps) {
                     background: "rgba(255,255,255,0.03)",
                   }
 
-                  // Enrolled users can click to jump to a specific lesson
-                  if (isEnrolled) {
+                  // Enrolled users OR free-preview lessons are clickable
+                  if (isEnrolled || lesson.is_free) {
                     return (
                       <Link
                         key={lesson.id}

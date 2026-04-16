@@ -2,18 +2,27 @@ import Link from "next/link"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Play, Star } from "lucide-react"
+import { getHomepageContent } from "@/lib/homepage-content"
 
 // ─── Brand tokens ─────────────────────────────────────────────────────────────
-const GOLD = "#C9A227"
-const PURPLE = "#3D0057"
-const BLACK = "#0a0a0a"
+// GOLD uses a CSS variable so the admin Design panel can override it at runtime.
+// color-mix() is used for transparent variants so they track the variable too.
+const GOLD   = "var(--brand-gold)"
+const PURPLE = "var(--brand-purple)"
+const BLACK  = "#0a0a0a"
+const GOLD_12  = "color-mix(in srgb, var(--brand-gold) 12%, transparent)"
+const GOLD_15  = "color-mix(in srgb, var(--brand-gold) 15%, transparent)"
+const GOLD_20  = "color-mix(in srgb, var(--brand-gold) 20%, transparent)"
+const GOLD_30  = "color-mix(in srgb, var(--brand-gold) 30%, transparent)"
+const GOLD_50  = "color-mix(in srgb, var(--brand-gold) 50%, transparent)"
+const GOLD_7   = "color-mix(in srgb, var(--brand-gold) 7%, transparent)"
 
 // ─── Reusable inline button styles ───────────────────────────────────────────
 const btnGold = {
   background: GOLD,
   color: BLACK,
   padding: "0.75rem 1.75rem",
-  borderRadius: "0.375rem",
+  borderRadius: "var(--btn-radius)",
   fontWeight: 700,
   fontSize: "0.95rem",
   display: "inline-block",
@@ -26,7 +35,7 @@ const btnOutline = {
   background: "transparent",
   color: GOLD,
   padding: "0.75rem 1.75rem",
-  borderRadius: "0.375rem",
+  borderRadius: "var(--btn-radius)",
   fontWeight: 700,
   fontSize: "0.95rem",
   display: "inline-flex",
@@ -38,10 +47,12 @@ const btnOutline = {
 } as const
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-export default function HomePage() {
+export default async function HomePage() {
+  const c = await getHomepageContent()
+
   return (
     <div className="flex min-h-screen flex-col" style={{ background: BLACK, color: "white" }}>
-      <Header />
+      <Header navLogo={c.nav_logo} navCta={c.nav_cta} logoUrl={c.logo_url} />
 
       <main className="flex-1">
 
@@ -49,7 +60,7 @@ export default function HomePage() {
         <section
           style={{
             background: BLACK,
-            borderBottom: "1px solid rgba(201,162,39,0.12)",
+            borderBottom: `1px solid ${GOLD_12}`,
           }}
           className="py-24 md:py-36"
         >
@@ -58,22 +69,21 @@ export default function HomePage() {
               className="mb-5 text-5xl font-black tracking-tight md:text-7xl"
               style={{ color: "white", lineHeight: 1.05, letterSpacing: "-0.02em" }}
             >
-              LEARN SALSA{" "}
-              <span style={{ color: GOLD }}>AT HOME</span>
+              {c.hero_headline}{" "}
+              <span style={{ color: GOLD }}>{c.hero_headline_accent}</span>
             </h1>
 
             <p className="mx-auto mb-10 max-w-2xl text-lg md:text-xl" style={{ color: "rgba(255,255,255,0.7)" }}>
-              Self-paced video courses you can watch at home, on your own schedule.
-              Watch anywhere, anytime.
+              {c.hero_subtext}
             </p>
 
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Link href="/courses/level-1" style={btnGold}>
-                Buy Course
+              <Link href="/courses" style={btnGold}>
+                {c.hero_cta_primary}
               </Link>
-              <Link href="/courses/level-1#free-lesson" style={btnOutline}>
+              <Link href="/free-lesson" style={btnOutline}>
                 <Play className="h-4 w-4" style={{ flexShrink: 0 }} />
-                Watch Free Lesson
+                {c.hero_cta_secondary}
               </Link>
             </div>
 
@@ -82,15 +92,15 @@ export default function HomePage() {
               className="mx-auto mt-16 grid max-w-3xl grid-cols-2 gap-4 md:grid-cols-4"
             >
               {[
-                { value: "500+", label: "Students Enrolled" },
-                { value: "Self-paced", label: "Watch on your own time" },
-                { value: "HD Video", label: "Crystal-clear lessons" },
-                { value: "Instant Access", label: "Start right away" },
+                { value: c.stat_1_value, label: c.stat_1_label },
+                { value: c.stat_2_value, label: c.stat_2_label },
+                { value: c.stat_3_value, label: c.stat_3_label },
+                { value: c.stat_4_value, label: c.stat_4_label },
               ].map((stat) => (
                 <div
                   key={stat.label}
                   className="rounded-lg p-4 text-center"
-                  style={{ background: "rgba(201,162,39,0.07)", border: "1px solid rgba(201,162,39,0.2)" }}
+                  style={{ background: GOLD_7, border: `1px solid ${GOLD_20}` }}
                 >
                   <div className="text-xl font-bold md:text-2xl" style={{ color: GOLD }}>
                     {stat.value}
@@ -111,7 +121,7 @@ export default function HomePage() {
               className="mb-12 text-center text-3xl font-black tracking-tight md:text-4xl"
               style={{ color: "white" }}
             >
-              CHOOSE YOUR LEVEL
+              {c.courses_title}
             </h2>
 
             <div className="grid gap-6 md:grid-cols-2">
@@ -120,7 +130,7 @@ export default function HomePage() {
                 className="flex flex-col rounded-lg p-8"
                 style={{
                   background: "rgba(255,255,255,0.04)",
-                  border: `1px solid rgba(201,162,39,0.3)`,
+                  border: `1px solid ${GOLD_30}`,
                 }}
               >
                 <div className="mb-5 flex items-start justify-between">
@@ -199,7 +209,7 @@ export default function HomePage() {
                   {["Advanced figures & combinations", "Musicality deep-dives", "Styling & performance tips"].map(
                     (item) => (
                       <li key={item} className="flex items-center gap-2">
-                        <span style={{ color: "rgba(201,162,39,0.5)" }}>✓</span>
+                        <span style={{ color: GOLD_50 }}>✓</span>
                         {item}
                       </li>
                     )
@@ -238,63 +248,37 @@ export default function HomePage() {
               className="mb-4 text-center text-3xl font-black tracking-tight md:text-4xl"
               style={{ color: "white" }}
             >
-              WHAT'S INSIDE THE COURSE?
+              {c.included_title}
             </h2>
             <p className="mx-auto mb-14 max-w-xl text-center text-base" style={{ color: "rgba(255,255,255,0.65)" }}>
-              Everything you need to go from zero to dancing — delivered straight
-              to your screen.
+              {c.included_subtext}
             </p>
 
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                {
-                  emoji: "🎥",
-                  title: "HD Video Lessons",
-                  desc: "Professionally recorded lessons — clear, close-up, and easy to follow at any speed.",
-                },
-                {
-                  emoji: "🎵",
-                  title: "Musicality Training",
-                  desc: "Learn to feel and interpret the music, not just count beats. Salsa starts with the song.",
-                },
-                {
-                  emoji: "💃",
-                  title: "Technique & Styling",
-                  desc: "Body movement, posture, leading and following broken down step by step so nothing is left to guesswork.",
-                },
-                {
-                  emoji: "🌍",
-                  title: "Salsa History & Culture",
-                  desc: "Understand the roots of what you're dancing — because context makes every move more meaningful.",
-                },
-                {
-                  emoji: "📖",
-                  title: "Study Guides",
-                  desc: "Downloadable PDFs to support each module so you can review key points offline.",
-                },
-                {
-                  emoji: "👥",
-                  title: "Online Community",
-                  desc: "Connect with fellow students inside the course platform — share progress, ask questions, stay motivated.",
-                },
-              ].map((item) => (
-                <div
-                  key={item.title}
-                  className="rounded-lg p-6"
-                  style={{
-                    background: "rgba(0,0,0,0.25)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                  }}
-                >
-                  <div className="mb-3 text-3xl">{item.emoji}</div>
-                  <h3 className="mb-2 text-base font-bold" style={{ color: GOLD }}>
-                    {item.title}
-                  </h3>
-                  <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.65)" }}>
-                    {item.desc}
-                  </p>
-                </div>
-              ))}
+              {([1, 2, 3, 4, 5, 6] as const).map((n) => {
+                const emoji = c[`feature_${n}_emoji` as keyof typeof c]
+                const title = c[`feature_${n}_title` as keyof typeof c]
+                const desc  = c[`feature_${n}_desc`  as keyof typeof c]
+                if (!title) return null
+                return (
+                  <div
+                    key={n}
+                    className="rounded-lg p-6"
+                    style={{
+                      background: "rgba(0,0,0,0.25)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                    }}
+                  >
+                    {emoji && <div className="mb-3 text-3xl">{emoji}</div>}
+                    <h3 className="mb-2 text-base font-bold" style={{ color: GOLD }}>
+                      {title}
+                    </h3>
+                    <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.65)" }}>
+                      {desc}
+                    </p>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </section>
@@ -369,31 +353,31 @@ export default function HomePage() {
         </section>
 
         {/* ── CTA Banner ───────────────────────────────────────────────── */}
-        <section className="py-20" style={{ background: GOLD }}>
+        <section className="py-20" style={{ background: "var(--brand-gold)" }}>
           <div className="container mx-auto max-w-3xl px-4 text-center">
             <h2
               className="mb-3 text-3xl font-black tracking-tight md:text-4xl"
               style={{ color: BLACK }}
             >
-              Ready to Start Dancing?
+              {c.banner_headline}
             </h2>
             <p className="mb-8 text-base font-medium" style={{ color: "rgba(0,0,0,0.7)" }}>
-              Get instant access to Level 1 and start your first lesson today.
+              {c.banner_subtext}
             </p>
             <Link
-              href="/courses/level-1"
+              href="/courses"
               style={{
                 background: BLACK,
                 color: "white",
                 padding: "0.875rem 2.25rem",
-                borderRadius: "0.375rem",
+                borderRadius: "var(--btn-radius)",
                 fontWeight: 700,
                 fontSize: "1rem",
                 display: "inline-block",
                 textDecoration: "none",
               }}
             >
-              Buy Course — €89
+              {c.banner_cta}
             </Link>
           </div>
         </section>

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Mail } from "lucide-react"
 
-const GOLD = "#C9A227"
+const GOLD = "var(--brand-gold)"
 
 export default function SignUpSuccessPage() {
   return (
@@ -12,7 +12,7 @@ export default function SignUpSuccessPage() {
         <CardHeader>
           <div
             className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full"
-            style={{ background: "rgba(201,162,39,0.15)" }}
+            style={{ background: "color-mix(in srgb, var(--brand-gold) 15%, transparent)" }}
           >
             <Mail className="h-8 w-8" style={{ color: GOLD }} />
           </div>
