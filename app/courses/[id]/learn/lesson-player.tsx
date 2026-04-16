@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import MuxPlayer from "@mux/mux-player-react"
@@ -195,6 +195,20 @@ export function LessonPlayer({
     new Set(Object.values(progressMap).filter(p => p.completed).map(p => p.lesson_id))
   )
 
+  // Re-sync completed set whenever the server sends a fresh progressMap
+  // (happens on navigation between lessons — same component instance, new props)
+  useEffect(() => {
+    setLocalCompleted(prev => {
+      const fromServer = new Set(
+        Object.values(progressMap).filter(p => p.completed).map(p => p.lesson_id)
+      )
+      // Merge: keep anything already marked complete in local state (optimistic)
+      // plus everything the server confirmed as complete
+      return new Set([...prev, ...fromServer])
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progressMap])
+
   const currentIndex   = lessons.findIndex(l => l.id === currentLesson.id)
   const prevLesson     = currentIndex > 0 ? lessons[currentIndex - 1] : null
   const nextLesson     = currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null
@@ -213,7 +227,8 @@ export function LessonPlayer({
           lesson_id:        currentLesson.id,
           completed:        false,
           progress_seconds: checkedCount,
-        })
+          updated_at:       new Date().toISOString(),
+        }, { onConflict: "user_id,lesson_id" })
       }
     } catch (err) {
       console.error(err)
@@ -232,7 +247,8 @@ export function LessonPlayer({
           lesson_id:    currentLesson.id,
           completed:    true,
           completed_at: new Date().toISOString(),
-        })
+          updated_at:   new Date().toISOString(),
+        }, { onConflict: "user_id,lesson_id" })
       }
       if (nextLesson) router.push(`/courses/${course.id}/learn?lesson=${nextLesson.id}`)
     } catch (err) {
@@ -259,9 +275,13 @@ export function LessonPlayer({
           >
             <ChevronLeft className="h-5 w-5" />
           </Link>
-          <span className="hidden shrink-0 text-sm font-black tracking-tight sm:block" style={{ color: GOLD }}>
+          <Link
+            href="/"
+            className="hidden shrink-0 text-sm font-black tracking-tight sm:block transition-opacity hover:opacity-70"
+            style={{ color: GOLD }}
+          >
             Salsa te Gusta
-          </span>
+          </Link>
           <span className="hidden sm:block" style={{ color: WHITE_30 }}>/</span>
           <span className="hidden min-w-0 truncate text-sm sm:block" style={{ color: WHITE_50 }}>
             {course.title}
