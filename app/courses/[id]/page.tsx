@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -5,6 +6,7 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { CheckCircle2, Circle, Clock, Lock, Play, PlayCircle, Star } from "lucide-react"
 import type { LessonProgress } from "@/lib/types"
 import { EnrollButton } from "./enroll-button"
@@ -14,6 +16,72 @@ const BLACK = "#0a0a0a"
 
 interface PageProps {
   params: Promise<{ id: string }>
+}
+
+// ── SEO metadata ──────────────────────────────────────────────────────────────
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params
+  const supabase = createAdminClient()
+
+  const { data: course } = await supabase
+    .from("courses")
+    .select("title, description, level, instructor_name, thumbnail_url")
+    .eq("id", id)
+    .eq("is_published", true)
+    .single()
+
+  if (!course) return { title: "Course Not Found" }
+
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://salsategusta.nl"
+  const levelLabel = course.level
+    ? course.level.replace("-", " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
+    : ""
+
+  const title       = `${course.title} | Salsa te Gusta`
+  const description = course.description
+    ? course.description.slice(0, 160)
+    : `Learn ${course.title} with Salsa te Gusta. Professional online salsa courses by ${course.instructor_name}.`
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      siteName: "Salsa te Gusta",
+      locale: "nl_NL",
+      alternateLocale: "en_GB",
+      images: course.thumbnail_url
+        ? [{ url: course.thumbnail_url, width: 1200, height: 630, alt: course.title }]
+        : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+    other: {
+      // Structured data for Google rich results
+      "application/ld+json": JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Course",
+        name: course.title,
+        description: course.description,
+        provider: {
+          "@type": "Organization",
+          name: "Salsa te Gusta",
+          url: baseUrl,
+        },
+        instructor: {
+          "@type": "Person",
+          name: course.instructor_name,
+        },
+        courseLevel: levelLabel,
+        url: `${baseUrl}/courses/${id}`,
+      }),
+    },
+  }
 }
 
 export default async function CourseDetailPage({ params }: PageProps) {

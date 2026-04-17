@@ -10,6 +10,7 @@ import type { Course, Lesson, LessonProgress } from "@/lib/types"
 import {
   ArrowLeft,
   ArrowRight,
+  Award,
   CheckCircle2,
   ChevronLeft,
   Circle,
@@ -179,6 +180,7 @@ interface LessonPlayerProps {
   currentLesson:  Lesson
   progressMap:    Record<string, LessonProgress>
   initialProgress: number
+  enrollmentId:   string | null
 }
 
 export function LessonPlayer({
@@ -187,6 +189,7 @@ export function LessonPlayer({
   currentLesson,
   progressMap,
   initialProgress,
+  enrollmentId,
 }: LessonPlayerProps) {
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -237,7 +240,9 @@ export function LessonPlayer({
 
   const markComplete = async () => {
     setCompleting(true)
-    setLocalCompleted(prev => new Set([...prev, currentLesson.id]))
+    const newCompleted = new Set([...localCompleted, currentLesson.id])
+    setLocalCompleted(newCompleted)
+
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
@@ -249,6 +254,16 @@ export function LessonPlayer({
           completed_at: new Date().toISOString(),
           updated_at:   new Date().toISOString(),
         }, { onConflict: "user_id,lesson_id" })
+
+        // If this was the last lesson, fire the course completion notification
+        const justFinishedAll = newCompleted.size === lessons.length
+        if (justFinishedAll) {
+          fetch("/api/progress/course-complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ courseId: course.id }),
+          }).catch(() => {/* non-blocking */})
+        }
       }
       if (nextLesson) router.push(`/courses/${course.id}/learn?lesson=${nextLesson.id}`)
     } catch (err) {
@@ -450,18 +465,31 @@ export function LessonPlayer({
               {/* Completion banner */}
               {allDone && (
                 <div
-                  className="mt-8 flex items-start gap-4 rounded-lg p-5"
+                  className="mt-8 rounded-lg p-5"
                   style={{ background: `${PURPLE}55`, border: "1px solid rgba(61,0,87,0.7)" }}
                 >
-                  <GraduationCap className="mt-0.5 h-6 w-6 shrink-0" style={{ color: GOLD }} />
-                  <div>
-                    <p className="font-black" style={{ color: WHITE }}>
-                      ¡Felicidades — Level 1 complete!
-                    </p>
-                    <p className="mt-1 text-sm" style={{ color: WHITE_70 }}>
-                      You've finished every lesson. Keep dancing.
-                    </p>
+                  <div className="flex items-start gap-4">
+                    <GraduationCap className="mt-0.5 h-6 w-6 shrink-0" style={{ color: GOLD }} />
+                    <div className="flex-1">
+                      <p className="font-black" style={{ color: WHITE }}>
+                        ¡Felicidades — course complete!
+                      </p>
+                      <p className="mt-1 text-sm" style={{ color: WHITE_70 }}>
+                        You've finished every lesson. Keep dancing.
+                      </p>
+                    </div>
                   </div>
+
+                  {enrollmentId && (
+                    <Link
+                      href={`/certificate/${enrollmentId}`}
+                      className="mt-4 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-opacity hover:opacity-90"
+                      style={{ background: GOLD, color: BLACK }}
+                    >
+                      <Award className="h-4 w-4" />
+                      Download Certificate
+                    </Link>
+                  )}
                 </div>
               )}
 

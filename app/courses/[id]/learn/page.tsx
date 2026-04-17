@@ -67,6 +67,18 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
 
   const progressMap = new Map(progress?.map(p => [p.lesson_id, p]) ?? [])
 
+  // Fetch enrollmentId so the completion banner can link to the certificate
+  let enrollmentId: string | null = null
+  if (user) {
+    const { data: enrollment } = await supabase
+      .from("enrollments")
+      .select("id, completed_at")
+      .eq("user_id", user.id)
+      .eq("course_id", id)
+      .single()
+    enrollmentId = enrollment?.id ?? null
+  }
+
   const currentLesson = requestedLesson
   const currentProgress = progressMap.get(currentLesson.id)
 
@@ -77,6 +89,7 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
       currentLesson={currentLesson}
       progressMap={Object.fromEntries(progressMap)}
       initialProgress={currentProgress?.progress_seconds ?? 0}
+      enrollmentId={enrollmentId}
     />
   )
 }
