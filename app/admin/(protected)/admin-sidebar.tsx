@@ -3,20 +3,30 @@
 /**
  * AdminSidebar — client component
  *
- * Rendered entirely in the browser, so it is never subject to:
+ * Rendered entirely in the browser so it is never subject to:
  *   • Vercel CDN caching / stale build artefacts
  *   • Next.js server-component streaming failures
  *   • Async layout errors silently dropping JSX nodes
  *
- * Nav links are hardcoded and render on the very first paint.
- * The courses list fetches via API and hydrates after.
+ * All nav links are hardcoded and render on the very first paint.
+ * The courses list fetches via API and hydrates in after mount.
+ *
+ * NOTE: className strings are inlined on every element (not stored in a
+ * variable) so Tailwind v4's CSS scanner reliably picks them up in
+ * production builds.
  */
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import {
-  Award, BarChart2, BookOpen, FileText,
-  LayoutDashboard, Paintbrush, Tag, Webhook,
+  Award,
+  BarChart2,
+  BookOpen,
+  FileText,
+  LayoutDashboard,
+  Paintbrush,
+  Tag,
+  Webhook,
 } from "lucide-react"
 import { SignOutButton } from "./sign-out-button"
 
@@ -25,8 +35,6 @@ interface Course {
   title: string
   level: string
 }
-
-const NAV_LINK = "flex items-center gap-2.5 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-white"
 
 export function AdminSidebar() {
   const [courses, setCourses] = useState<Course[]>([])
@@ -53,37 +61,58 @@ export function AdminSidebar() {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3">
 
-        <Link href="/admin" className={NAV_LINK}>
+        <Link
+          href="/admin"
+          className="flex items-center gap-2.5 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-white"
+        >
           <LayoutDashboard className="h-4 w-4" />
           Dashboard
         </Link>
 
-        <Link href="/admin/design" className={NAV_LINK}>
+        <Link
+          href="/admin/design"
+          className="flex items-center gap-2.5 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-white"
+        >
           <Paintbrush className="h-4 w-4" />
           Design
         </Link>
 
-        <Link href="/admin/content" className={NAV_LINK}>
+        <Link
+          href="/admin/content"
+          className="flex items-center gap-2.5 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-white"
+        >
           <FileText className="h-4 w-4" />
           Content
         </Link>
 
-        <Link href="/admin/discounts" className={NAV_LINK}>
+        <Link
+          href="/admin/discounts"
+          className="flex items-center gap-2.5 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-white"
+        >
           <Tag className="h-4 w-4" />
           Discounts
         </Link>
 
-        <Link href="/admin/analytics" className={NAV_LINK}>
+        <Link
+          href="/admin/analytics"
+          className="flex items-center gap-2.5 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-white"
+        >
           <BarChart2 className="h-4 w-4" />
           Analytics
         </Link>
 
-        <Link href="/admin/certificate" className={NAV_LINK}>
+        <Link
+          href="/admin/certificate"
+          className="flex items-center gap-2.5 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-white"
+        >
           <Award className="h-4 w-4" />
           Certificate
         </Link>
 
-        <Link href="/admin/integrations" className={NAV_LINK}>
+        <Link
+          href="/admin/integrations"
+          className="flex items-center gap-2.5 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-white"
+        >
           <Webhook className="h-4 w-4" />
           Integrations
         </Link>
@@ -99,7 +128,7 @@ export function AdminSidebar() {
           <Link
             key={course.id}
             href={`/admin/courses/${course.id}`}
-            className={NAV_LINK}
+            className="flex items-center gap-2.5 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-white"
           >
             <BookOpen className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{course.title}</span>
