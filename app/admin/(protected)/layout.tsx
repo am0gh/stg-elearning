@@ -5,6 +5,9 @@ import { Award, BarChart2, BookOpen, FileText, LayoutDashboard, Paintbrush, Tag,
 import { SignOutButton } from "./sign-out-button"
 import { isAdmin } from "@/lib/auth/admin"
 
+// Always render fresh — never serve a cached/stale admin shell from Vercel's CDN
+export const dynamic = "force-dynamic"
+
 export default async function AdminLayout({
   children,
 }: {
@@ -13,12 +16,18 @@ export default async function AdminLayout({
   const authed = await isAdmin()
   if (!authed) redirect("/admin/login")
 
-  // Fetch courses for sidebar
-  const supabase = createAdminClient()
-  const { data: courses } = await supabase
-    .from("courses")
-    .select("id, title, level")
-    .order("created_at", { ascending: true })
+  // Fetch courses for sidebar (gracefully degrade if DB is unreachable)
+  let courses: { id: string; title: string; level: string }[] = []
+  try {
+    const supabase = createAdminClient()
+    const { data } = await supabase
+      .from("courses")
+      .select("id, title, level")
+      .order("created_at", { ascending: true })
+    courses = data ?? []
+  } catch {
+    // Non-fatal — sidebar still renders without the courses list
+  }
 
   return (
     <div className="flex h-screen bg-zinc-950 text-white">
@@ -96,7 +105,7 @@ export default async function AdminLayout({
             </p>
           </div>
 
-          {courses?.map(course => (
+          {courses.map(course => (
             <Link
               key={course.id}
               href={`/admin/courses/${course.id}`}

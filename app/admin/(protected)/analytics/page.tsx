@@ -5,7 +5,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar, Cell,
 } from "recharts"
-import { Award, BookOpen, Loader2, TrendingUp, Users } from "lucide-react"
+import { Award, BookOpen, Loader2, Tag, TrendingUp, Users } from "lucide-react"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,10 +42,21 @@ interface CourseStat {
   lessonStats:      LessonStat[]
 }
 
+interface DiscountStat {
+  codeId:              string
+  code:                string
+  discount_percent:    number | null
+  discount_amount_eur: number | null
+  description:         string | null
+  enrollmentCount:     number
+  userIds:             string[]
+}
+
 interface Analytics {
-  overview:    Overview
-  chartData:   ChartPoint[]
-  courseStats: CourseStat[]
+  overview:      Overview
+  chartData:     ChartPoint[]
+  courseStats:   CourseStat[]
+  discountStats: DiscountStat[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -87,12 +98,12 @@ function StatCard({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
-  const [data, setData]       = useState<Analytics | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [days, setDays]       = useState(30)
-  const [expanded, setExpanded] = useState<string | null>(null)
-
-  const [error, setError] = useState<string | null>(null)
+  const [data, setData]             = useState<Analytics | null>(null)
+  const [loading, setLoading]       = useState(true)
+  const [days, setDays]             = useState(30)
+  const [expanded, setExpanded]     = useState<string | null>(null)
+  const [codeFilter, setCodeFilter] = useState<string>("all")
+  const [error, setError]           = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -141,7 +152,7 @@ export default function AnalyticsPage() {
     )
   }
 
-  const { overview, chartData, courseStats } = data
+  const { overview, chartData, courseStats, discountStats = [] } = data
 
   // Format the X-axis date labels
   const formattedChart = chartData.map(d => ({
@@ -177,6 +188,50 @@ export default function AnalyticsPage() {
           ))}
         </div>
       </div>
+
+      {/* ── Discount code filter ── */}
+      {discountStats.length > 0 && (
+        <div className="mb-6 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Filter by code:</span>
+          <button
+            onClick={() => setCodeFilter("all")}
+            className="rounded-full px-3 py-1 text-xs font-bold transition-colors"
+            style={{
+              background: codeFilter === "all" ? GOLD : GOLD_DIM,
+              color: codeFilter === "all" ? "#0a0a0a" : GOLD,
+              border: `1px solid ${codeFilter === "all" ? GOLD : "transparent"}`,
+            }}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setCodeFilter("none")}
+            className="rounded-full px-3 py-1 text-xs font-bold transition-colors"
+            style={{
+              background: codeFilter === "none" ? "rgba(113,113,122,0.3)" : "rgba(113,113,122,0.1)",
+              color: codeFilter === "none" ? "white" : "rgb(113,113,122)",
+              border: `1px solid ${codeFilter === "none" ? "rgb(113,113,122)" : "transparent"}`,
+            }}
+          >
+            No code
+          </button>
+          {discountStats.map(ds => (
+            <button
+              key={ds.codeId}
+              onClick={() => setCodeFilter(ds.codeId)}
+              className="rounded-full px-3 py-1 text-xs font-bold transition-colors"
+              style={{
+                background: codeFilter === ds.codeId ? GOLD : GOLD_DIM,
+                color: codeFilter === ds.codeId ? "#0a0a0a" : GOLD,
+                border: `1px solid ${codeFilter === ds.codeId ? GOLD : "transparent"}`,
+              }}
+            >
+              {ds.code}
+              <span className="ml-1.5 opacity-70">{ds.enrollmentCount}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── Overview stats ── */}
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -419,6 +474,114 @@ export default function AnalyticsPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Discount code usage ── */}
+      <div className="mt-10">
+        <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-zinc-400">
+          Discount Code Usage
+        </h2>
+
+        {discountStats.length === 0 ? (
+          <div
+            className="rounded-xl p-8 text-center"
+            style={{ border: "1px solid rgb(39 39 42)" }}
+          >
+            <Tag className="mx-auto mb-2 h-6 w-6 text-zinc-700" />
+            <p className="text-sm text-zinc-500">No discount codes have been used yet.</p>
+          </div>
+        ) : (
+          <div
+            className="overflow-hidden rounded-xl"
+            style={{ border: "1px solid rgb(39 39 42)", background: "rgb(24 24 27)" }}
+          >
+            {/* Header row */}
+            <div className="grid grid-cols-[1fr_120px_100px_100px] gap-4 border-b border-zinc-800 px-6 py-3 text-xs font-bold uppercase tracking-wider text-zinc-600">
+              <span>Code</span>
+              <span>Discount</span>
+              <span>Enrollments</span>
+              <span>Unique Users</span>
+            </div>
+
+            {discountStats.map((ds, i) => {
+              const discountLabel = ds.discount_amount_eur !== null
+                ? `€${Number(ds.discount_amount_eur).toFixed(2)} off`
+                : `${ds.discount_percent}% off`
+              const isHighlighted = codeFilter === ds.codeId
+
+              return (
+                <div
+                  key={ds.codeId}
+                  className="grid grid-cols-[1fr_120px_100px_100px] items-center gap-4 px-6 py-4 transition-colors"
+                  style={{
+                    borderTop: i > 0 ? "1px solid rgb(39 39 42)" : undefined,
+                    background: isHighlighted ? "rgba(201,162,39,0.06)" : undefined,
+                  }}
+                >
+                  {/* Code + description */}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="rounded px-2 py-0.5 font-mono text-sm font-bold"
+                        style={{ background: "rgb(39 39 42)", color: GOLD }}
+                      >
+                        {ds.code}
+                      </span>
+                      {isHighlighted && (
+                        <span className="rounded-full px-2 py-0.5 text-xs font-bold" style={{ background: GOLD_DIM, color: GOLD }}>
+                          filtered
+                        </span>
+                      )}
+                    </div>
+                    {ds.description && (
+                      <p className="mt-0.5 truncate text-xs text-zinc-500">{ds.description}</p>
+                    )}
+                  </div>
+
+                  {/* Discount value */}
+                  <span
+                    className="text-sm font-semibold tabular-nums"
+                    style={{ color: ds.discount_percent === 100 ? "#22c55e" : GOLD }}
+                  >
+                    {discountLabel}
+                  </span>
+
+                  {/* Enrollment count with bar */}
+                  <div>
+                    <p className="text-sm font-bold tabular-nums text-white">{ds.enrollmentCount}</p>
+                    <div className="mt-1 h-1 w-20 overflow-hidden rounded-full" style={{ background: "rgb(39 39 42)" }}>
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.round((ds.enrollmentCount / Math.max(...discountStats.map(d => d.enrollmentCount))) * 100)}%`,
+                          background: GOLD,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Unique users */}
+                  <span className="text-sm tabular-nums text-zinc-400">{ds.userIds.length}</span>
+                </div>
+              )
+            })}
+
+            {/* Totals row */}
+            <div
+              className="grid grid-cols-[1fr_120px_100px_100px] gap-4 border-t border-zinc-700 px-6 py-3"
+              style={{ background: "rgba(255,255,255,0.02)" }}
+            >
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Total via codes</span>
+              <span />
+              <span className="text-sm font-black tabular-nums" style={{ color: GOLD }}>
+                {discountStats.reduce((s, d) => s + d.enrollmentCount, 0)}
+              </span>
+              <span className="text-sm font-black tabular-nums" style={{ color: GOLD }}>
+                {new Set(discountStats.flatMap(d => d.userIds)).size}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

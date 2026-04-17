@@ -1,14 +1,19 @@
 -- Discount codes table
 create table if not exists public.discount_codes (
-  id            uuid primary key default gen_random_uuid(),
-  code          text not null unique,
-  description   text,
-  discount_percent integer not null check (discount_percent >= 0 and discount_percent <= 100),
-  is_active     boolean not null default true,
-  max_uses      integer default null,       -- null = unlimited
-  uses_count    integer not null default 0,
-  expires_at    timestamptz default null,   -- null = never expires
-  created_at    timestamptz not null default now()
+  id                   uuid primary key default gen_random_uuid(),
+  code                 text not null unique,
+  description          text,
+  discount_percent     integer default null check (discount_percent >= 0 and discount_percent <= 100),
+  discount_amount_eur  numeric(10,2) default null,
+  is_active            boolean not null default true,
+  max_uses             integer default null,       -- null = unlimited
+  uses_count           integer not null default 0,
+  expires_at           timestamptz default null,   -- null = never expires
+  created_at           timestamptz not null default now(),
+  -- exactly one of percent or amount must be set
+  constraint discount_codes_type_check check (
+    num_nonnulls(discount_percent, discount_amount_eur) = 1
+  )
 );
 
 -- Index for fast code lookups (case-insensitive)

@@ -21,17 +21,22 @@ export function EnrollButton({ courseId, coursePrice, isLoggedIn }: EnrollButton
   const [discountCode, setDiscountCode] = useState("")
   const [codeInput, setCodeInput] = useState("")
   const [discountPct, setDiscountPct] = useState<number | null>(null)
+  const [discountAmountEur, setDiscountAmountEur] = useState<number | null>(null)
   const [discountId, setDiscountId] = useState<string | null>(null)
   const [codeError, setCodeError] = useState<string | null>(null)
   const [validating, setValidating] = useState(false)
   const [showCodeInput, setShowCodeInput] = useState(false)
   const router = useRouter()
 
-  const effectivePrice = discountPct !== null
-    ? Math.max(0, coursePrice * (1 - discountPct / 100))
-    : coursePrice
+  // Compute the price after whichever discount type is active
+  const effectivePrice = discountAmountEur !== null
+    ? Math.max(0, coursePrice - discountAmountEur)
+    : discountPct !== null
+      ? Math.max(0, coursePrice * (1 - discountPct / 100))
+      : coursePrice
 
   const isFreeAfterDiscount = effectivePrice === 0
+  const hasDiscount = discountCode !== ""
 
   // ── Validate discount code ──────────────────────────────────────────────────
   const handleApplyCode = async () => {
@@ -51,7 +56,8 @@ export function EnrollButton({ courseId, coursePrice, isLoggedIn }: EnrollButton
       setCodeError(data.error ?? "Invalid code")
     } else {
       setDiscountCode(data.code)
-      setDiscountPct(data.discount_percent)
+      setDiscountPct(data.discount_percent ?? null)
+      setDiscountAmountEur(data.discount_amount_eur ?? null)
       setDiscountId(data.id)
       setShowCodeInput(false)
       setCodeInput("")
@@ -63,6 +69,7 @@ export function EnrollButton({ courseId, coursePrice, isLoggedIn }: EnrollButton
   const handleRemoveCode = () => {
     setDiscountCode("")
     setDiscountPct(null)
+    setDiscountAmountEur(null)
     setDiscountId(null)
     setCodeError(null)
   }
@@ -80,7 +87,11 @@ export function EnrollButton({ courseId, coursePrice, isLoggedIn }: EnrollButton
 
       const { error } = await supabase
         .from("enrollments")
-        .insert({ user_id: user.id, course_id: courseId })
+        .insert({
+          user_id: user.id,
+          course_id: courseId,
+          ...(discountId ? { discount_code_id: discountId } : {}),
+        })
 
       if (error) throw error
 
@@ -123,8 +134,9 @@ export function EnrollButton({ courseId, coursePrice, isLoggedIn }: EnrollButton
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courseId,
-          discountCodeId:   discountId ?? undefined,
-          discountPercent:  discountPct ?? 0,
+          discountCodeId:      discountId ?? undefined,
+          discountPercent:     discountPct ?? undefined,
+          discountAmountEur:   discountAmountEur ?? undefined,
         }),
       })
 
@@ -167,7 +179,7 @@ export function EnrollButton({ courseId, coursePrice, isLoggedIn }: EnrollButton
   return (
     <div className="space-y-3">
       {/* Applied discount badge */}
-      {discountCode && discountPct !== null && (
+      {hasDiscount && (
         <div
           className="flex items-center justify-between rounded-lg px-3 py-2"
           style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)" }}
@@ -175,10 +187,11 @@ export function EnrollButton({ courseId, coursePrice, isLoggedIn }: EnrollButton
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-green-400" />
             <span className="text-sm font-semibold text-green-400">
-              {discountPct}% off — code <span className="font-mono">{discountCode}</span>
-              {discountPct === 100 && (
-                <span className="ml-1 font-bold">· Free!</span>
-              )}
+              {discountAmountEur !== null
+                ? <>€{discountAmountEur.toFixed(2)} off — code <span className="font-mono">{discountCode}</span></>
+                : <>{discountPct}% off — code <span className="font-mono">{discountCode}</span></>
+              }
+              {isFreeAfterDiscount && <span className="ml-1 font-bold">· Free!</span>}
             </span>
           </div>
           <button onClick={handleRemoveCode} className="text-green-600 hover:text-green-400">
@@ -221,11 +234,11 @@ export function EnrollButton({ courseId, coursePrice, isLoggedIn }: EnrollButton
         </div>
       )}
 
-      {/* Price preview when discount is partial */}
-      {discountPct !== null && discountPct > 0 && discountPct < 100 && (
+      {/* Price preview when discount is partial (not 100% free) */}
+      {hasDiscount && !isFreeAfterDiscount && (
         <div className="rounded-lg p-3 text-center" style={{ background: "rgba(201,162,39,0.08)", border: "1px solid rgba(201,162,39,0.2)" }}>
           <span className="mr-2 text-sm line-through" style={{ color: "rgba(255,255,255,0.4)" }}>
-            €{coursePrice}
+            €{coursePrice.toFixed(2)}
           </span>
           <span className="text-lg font-black" style={{ color: GOLD }}>
             €{effectivePrice.toFixed(2)}

@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
 
   const { data: enrollmentsPerCourse } = await supabase
     .from("enrollments")
-    .select("course_id")
+    .select("course_id, discount_code_id")
     .gte(cutoff ? "enrolled_at" : "id", cutoff ?? "")
 
   const enrollmentCounts: Record<string, number> = {}
@@ -177,6 +177,51 @@ export async function GET(req: NextRequest) {
     (sum, e) => sum + (priceMap[e.course_id] ?? 0), 0
   )
 
+  // ── 7. Discount code usage breakdown ─────────────────────────────────────────
+
+  // Fetch all enrollments that had a discount code, with user email
+  const { data: discountEnrollments } = await supabase
+    .from("enrollments")
+    .select("discount_code_id, course_id, enrolled_at, user_id")
+    .not("discount_code_id", "is", null)
+
+  // Fetch all discount codes for labelling
+  const { data: allCodes } = await supabase
+    .from("discount_codes")
+    .select("id, code, discount_percent, discount_amount_eur, description")
+
+  const codeMap: Record<string, { code: string; discount_percent: number | null; discount_amount_eur: number | null; description: string | null }> = {}
+  for (const dc of allCodes ?? []) codeMap[dc.id] = dc
+
+  // Aggregate per discount code
+  const discountUsage: Record<string, {
+    codeId: string; code: string; discount_percent: number | null; discount_amount_eur: number | null
+    description: string | null; enrollmentCount: number; userIds: string[]
+  }> = {}
+
+  for (const e of discountEnrollments ?? []) {
+    if (!e.discount_code_id) continue
+    const meta = codeMap[e.discount_code_id]
+    if (!discountUsage[e.discount_code_id]) {
+      discountUsage[e.discount_code_id] = {
+        codeId: e.discount_code_id,
+        code: meta?.code ?? "unknown",
+        discount_percent: meta?.discount_percent ?? null,
+        discount_amount_eur: meta?.discount_amount_eur ?? null,
+        description: meta?.description ?? null,
+        enrollmentCount: 0,
+        userIds: [],
+      }
+    }
+    discountUsage[e.discount_code_id].enrollmentCount++
+    if (!discountUsage[e.discount_code_id].userIds.includes(e.user_id)) {
+      discountUsage[e.discount_code_id].userIds.push(e.user_id)
+    }
+  }
+
+  const discountStats = Object.values(discountUsage)
+    .sort((a, b) => b.enrollmentCount - a.enrollmentCount)
+
   // ─────────────────────────────────────────────────────────────────────────────
   return NextResponse.json({
     overview: {
@@ -188,5 +233,6 @@ export async function GET(req: NextRequest) {
     },
     chartData,
     courseStats,
+    discountStats,
   })
 }

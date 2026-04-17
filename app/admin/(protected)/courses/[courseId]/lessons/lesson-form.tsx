@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, Plus, Trash2, GripVertical, Loader2, Video } from "lucide-react"
+import { ChevronLeft, Plus, Trash2, GripVertical, Loader2, Video, Upload, CheckCircle2, XCircle } from "lucide-react"
 
 interface MuxAsset {
   id: string
@@ -54,12 +54,21 @@ export function LessonForm({ courseId, lessonId, initial }: LessonFormProps) {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
 
-  // Mux assets state
+  // Mux picker state
   const [muxAssets, setMuxAssets] = useState<MuxAsset[]>([])
   const [muxLoading, setMuxLoading] = useState(false)
   const [muxError, setMuxError] = useState("")
   const [showMuxPicker, setShowMuxPicker] = useState(false)
   const [muxSearch, setMuxSearch] = useState("")
+
+  // Mux direct upload state
+  type UploadPhase = "idle" | "uploading" | "processing" | "ready" | "errored"
+  const [uploadPhase, setUploadPhase] = useState<UploadPhase>("idle")
+  const [uploadProgress, setUploadProgress] = useState(0) // 0–100
+  const [uploadError, setUploadError] = useState("")
+  const [uploadFileName, setUploadFileName] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const set = <K extends keyof LessonFormData>(field: K, value: LessonFormData[K]) =>
     setForm(prev => ({ ...prev, [field]: value }))
@@ -105,6 +114,97 @@ export function LessonForm({ courseId, lessonId, initial }: LessonFormProps) {
     }
     setShowMuxPicker(false)
   }
+
+  // ── Direct upload ──────────────────────────────────────────────────────────
+
+  const pollUploadStatus = useCallback(async (uploadId: string) => {
+    try {
+      const res = await fetch(`/api/admin/mux/upload-status?uploadId=${uploadId}`)
+      if (!res.ok) throw new Error("Status check failed")
+      const data = await res.json()
+
+      if (data.status === "ready") {
+        setUploadPhase("ready")
+        if (data.playback_id) {
+          set("video_url", data.playback_id)
+          if (data.duration && form.duration_minutes === 10) {
+            set("duration_minutes", Math.round(data.duration / 60))
+          }
+        }
+        // Refresh the "Pick from Mux" list so the new video appears
+        setMuxAssets([])
+      } else if (data.status === "errored") {
+        setUploadPhase("errored")
+        setUploadError("Mux processing failed. Please try again.")
+      } else {
+        // Still uploading or processing — poll again in 3 s
+        pollTimerRef.current = setTimeout(() => pollUploadStatus(uploadId), 3000)
+      }
+    } catch {
+      setUploadPhase("errored")
+      setUploadError("Failed to check upload status.")
+    }
+  }, [form.duration_minutes]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Reset
+    if (pollTimerRef.current) clearTimeout(pollTimerRef.current)
+    setUploadPhase("uploading")
+    setUploadProgress(0)
+    setUploadError("")
+    setUploadFileName(file.name)
+
+    try {
+      // 1. Ask our backend to create a Mux direct upload URL
+      const createRes = await fetch("/api/admin/mux/upload", { method: "POST" })
+      if (!createRes.ok) throw new Error("Could not create upload URL")
+      const { uploadId, uploadUrl } = await createRes.json()
+
+      // 2. PUT the file directly to Mux via XHR so we can track progress
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open("PUT", uploadUrl)
+        xhr.setRequestHeader("Content-Type", file.type || "video/mp4")
+
+        xhr.upload.onprogress = (ev) => {
+          if (ev.lengthComputable) {
+            setUploadProgress(Math.round((ev.loaded / ev.total) * 100))
+          }
+        }
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve()
+          else reject(new Error(`Upload failed with status ${xhr.status}`))
+        }
+        xhr.onerror = () => reject(new Error("Network error during upload"))
+        xhr.send(file)
+      })
+
+      // 3. File is on Mux — now poll until asset is ready
+      setUploadPhase("processing")
+      setUploadProgress(100)
+      pollTimerRef.current = setTimeout(() => pollUploadStatus(uploadId), 3000)
+    } catch (err: any) {
+      setUploadPhase("errored")
+      setUploadError(err.message ?? "Upload failed")
+    }
+
+    // Reset the input so the same file can be re-selected if needed
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
+  const resetUpload = () => {
+    if (pollTimerRef.current) clearTimeout(pollTimerRef.current)
+    setUploadPhase("idle")
+    setUploadProgress(0)
+    setUploadError("")
+    setUploadFileName("")
+  }
+
+  // ── Dynamic list helpers ───────────────────────────────────────────────────
 
   // Dynamic list helpers
   const addTip = () => set("content_tips", [...form.content_tips, ""])
@@ -231,6 +331,15 @@ export function LessonForm({ courseId, lessonId, initial }: LessonFormProps) {
 
         {/* ── Video ── */}
         <Section title="Video">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+
           <Field label="Mux Playback ID">
             <div className="flex gap-2">
               <input
@@ -241,13 +350,69 @@ export function LessonForm({ courseId, lessonId, initial }: LessonFormProps) {
               />
               <button
                 type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadPhase === "uploading" || uploadPhase === "processing"}
+                className="shrink-0 flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-300 hover:border-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Upload
+              </button>
+              <button
+                type="button"
                 onClick={openMuxPicker}
                 className="shrink-0 rounded-lg border border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-300 hover:border-zinc-500 hover:text-white"
               >
                 Pick from Mux
               </button>
             </div>
-            {form.video_url && (
+
+            {/* Upload progress / status */}
+            {uploadPhase === "uploading" && (
+              <div className="mt-3 space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Uploading {uploadFileName}…
+                  </span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+                  <div
+                    className="h-full rounded-full bg-amber-500 transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {uploadPhase === "processing" && (
+              <div className="mt-3 flex items-center gap-2 text-xs text-amber-400">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Video uploaded — Mux is processing it. This usually takes 1–3 minutes…
+              </div>
+            )}
+
+            {uploadPhase === "ready" && (
+              <div className="mt-3 flex items-center gap-2 text-xs text-green-400">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Video ready! Playback ID auto-filled below.
+                <button type="button" onClick={resetUpload} className="ml-auto text-zinc-500 hover:text-white">
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {uploadPhase === "errored" && (
+              <div className="mt-3 flex items-center gap-2 text-xs text-red-400">
+                <XCircle className="h-3.5 w-3.5" />
+                {uploadError}
+                <button type="button" onClick={resetUpload} className="ml-2 underline">
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {form.video_url && uploadPhase !== "ready" && (
               <p className="mt-1.5 text-xs text-green-500">✓ Video selected</p>
             )}
           </Field>
