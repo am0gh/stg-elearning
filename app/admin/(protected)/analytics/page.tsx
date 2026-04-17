@@ -92,19 +92,51 @@ export default function AnalyticsPage() {
   const [days, setDays]       = useState(30)
   const [expanded, setExpanded] = useState<string | null>(null)
 
+  const [error, setError] = useState<string | null>(null)
+
   useEffect(() => {
     setLoading(true)
+    setError(null)
     fetch(`/api/admin/analytics?days=${days}`)
-      .then(r => r.json())
-      .then(setData)
-      .catch(console.error)
+      .then(r => {
+        if (!r.ok) throw new Error(`Server returned ${r.status}`)
+        return r.json()
+      })
+      .then(json => {
+        // Guard: ensure the response has the expected shape
+        if (!json.overview || !json.chartData || !json.courseStats) {
+          throw new Error("Unexpected response from analytics API")
+        }
+        setData(json)
+      })
+      .catch(err => {
+        console.error(err)
+        setError(err.message ?? "Failed to load analytics")
+      })
       .finally(() => setLoading(false))
   }, [days])
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="flex h-full items-center justify-center p-8">
         <Loader2 className="h-6 w-6 animate-spin text-amber-400" />
+      </div>
+    )
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+        <p className="text-sm font-semibold text-red-400">
+          {error ?? "Failed to load analytics"}
+        </p>
+        <button
+          onClick={() => setDays(d => d)}
+          className="rounded-lg px-4 py-2 text-xs font-bold"
+          style={{ background: "rgba(201,162,39,0.12)", color: "#C9A227", border: "1px solid rgba(201,162,39,0.25)" }}
+        >
+          Retry
+        </button>
       </div>
     )
   }
