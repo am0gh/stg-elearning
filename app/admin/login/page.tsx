@@ -1,10 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 
 export default function AdminLoginPage() {
-  const router = useRouter()
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -21,8 +19,10 @@ export default function AdminLoginPage() {
     })
 
     if (res.ok) {
-      router.push("/admin")
-      router.refresh()
+      // Hard navigation ensures the browser sends the fresh admin_session
+      // cookie with the request — soft navigation (router.push) can race
+      // with the cookie being committed and get bounced back to login.
+      window.location.href = "/admin"
     } else {
       setError("Incorrect password")
       setLoading(false)
