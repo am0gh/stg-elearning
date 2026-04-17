@@ -4,8 +4,8 @@ import { useState, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
-  Award, BookOpen, Calendar, Camera,
-  CheckCircle2, Loader2, Play, Save, User,
+  AlertTriangle, Award, BookOpen, Calendar, Camera,
+  CheckCircle2, ChevronDown, Loader2, Play, Save, Trash2, User,
 } from "lucide-react"
 
 const GOLD    = "#C9A227"
@@ -16,6 +16,9 @@ const W30     = "rgba(255,255,255,0.3)"
 const W08     = "rgba(255,255,255,0.08)"
 const BORDER  = "rgba(255,255,255,0.09)"
 const GOLD_DIM = "rgba(201,162,39,0.12)"
+const RED     = "#ef4444"
+const RED_DIM  = "rgba(239,68,68,0.08)"
+const RED_BDR  = "rgba(239,68,68,0.25)"
 
 interface CourseHistoryItem {
   enrollmentId:    string
@@ -58,6 +61,12 @@ export function ProfileForm({
   const [saved, setSaved]         = useState(false)
   const [error, setError]         = useState<string | null>(null)
 
+  // ── Delete account state ────────────────────────────────────────────────────
+  const [deleteOpen, setDeleteOpen]       = useState(false)
+  const [deleteEmail, setDeleteEmail]     = useState("")
+  const [deleting, setDeleting]           = useState(false)
+  const [deleteError, setDeleteError]     = useState<string | null>(null)
+
   const displayAvatar = avatarPreview ?? avatarUrl
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,6 +107,29 @@ export function ProfileForm({
       setError("Something went wrong. Please try again.")
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    setDeleteError(null)
+    setDeleting(true)
+    try {
+      const res = await fetch("/api/account/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmEmail: deleteEmail }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setDeleteError(data.error ?? "Failed to delete account. Please try again.")
+        return
+      }
+      // Account gone — hard redirect clears the session cookie immediately
+      window.location.href = "/?deleted=1"
+    } catch {
+      setDeleteError("Something went wrong. Please try again.")
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -320,6 +352,95 @@ export function ProfileForm({
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Danger zone ──────────────────────────────────────────────── */}
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ border: `1px solid ${RED_BDR}` }}
+      >
+        {/* Header — always visible */}
+        <button
+          type="button"
+          onClick={() => { setDeleteOpen(o => !o); setDeleteEmail(""); setDeleteError(null) }}
+          className="flex w-full items-center justify-between px-6 py-4 text-left transition-colors hover:bg-red-950/20"
+          style={{ background: RED_DIM }}
+        >
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-4 w-4 shrink-0" style={{ color: RED }} />
+            <div>
+              <p className="text-sm font-bold" style={{ color: RED }}>Delete Account</p>
+              <p className="text-xs mt-0.5" style={{ color: "rgba(239,68,68,0.6)" }}>
+                Permanently remove your account and all data
+              </p>
+            </div>
+          </div>
+          <ChevronDown
+            className="h-4 w-4 shrink-0 transition-transform"
+            style={{ color: RED, transform: deleteOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+          />
+        </button>
+
+        {/* Expandable confirmation panel */}
+        {deleteOpen && (
+          <div className="px-6 pb-6 pt-4 space-y-4" style={{ background: "rgba(239,68,68,0.04)" }}>
+            {/* What gets deleted */}
+            <div
+              className="rounded-lg px-4 py-3 text-xs space-y-1"
+              style={{ background: RED_DIM, border: `1px solid ${RED_BDR}` }}
+            >
+              <p className="font-bold" style={{ color: RED }}>This action is permanent and cannot be undone.</p>
+              <p style={{ color: "rgba(239,68,68,0.7)" }}>
+                All of your data will be erased: your profile, course enrolments, lesson progress,
+                and login credentials. You will lose access to any courses you have purchased.
+              </p>
+            </div>
+
+            {/* Email confirmation input */}
+            <div>
+              <label
+                htmlFor="delete-confirm-email"
+                className="mb-2 block text-xs font-bold uppercase tracking-widest"
+                style={{ color: "rgba(239,68,68,0.7)" }}
+              >
+                Type your email address to confirm
+              </label>
+              <input
+                id="delete-confirm-email"
+                type="email"
+                autoComplete="off"
+                value={deleteEmail}
+                onChange={e => { setDeleteEmail(e.target.value); setDeleteError(null) }}
+                placeholder={email}
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none"
+                style={{
+                  background: "rgba(239,68,68,0.06)",
+                  borderColor: deleteError ? RED : RED_BDR,
+                  color: WHITE,
+                }}
+              />
+              {deleteError && (
+                <p className="mt-1.5 text-xs" style={{ color: RED }}>{deleteError}</p>
+              )}
+            </div>
+
+            {/* Confirm button */}
+            <button
+              type="button"
+              onClick={handleDeleteAccount}
+              disabled={deleting || deleteEmail.trim().toLowerCase() !== email.toLowerCase()}
+              className="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-bold transition-opacity disabled:opacity-40"
+              style={{ background: RED, color: WHITE }}
+            >
+              {deleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              {deleting ? "Deleting account…" : "Permanently Delete My Account"}
+            </button>
           </div>
         )}
       </div>

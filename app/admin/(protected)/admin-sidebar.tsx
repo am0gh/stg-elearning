@@ -26,6 +26,7 @@ import {
   LayoutDashboard,
   Paintbrush,
   Tag,
+  Users,
   Webhook,
 } from "lucide-react"
 import { SignOutButton } from "./sign-out-button"
@@ -99,6 +100,14 @@ export function AdminSidebar() {
         >
           <BarChart2 className="h-4 w-4" />
           Analytics
+        </Link>
+
+        <Link
+          href="/admin/enrollments"
+          className="flex items-center gap-2.5 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-white"
+        >
+          <Users className="h-4 w-4" />
+          Enrollments
         </Link>
 
         <Link

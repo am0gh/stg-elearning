@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { DEFAULT_SETTINGS, getSiteSettings, type SiteSettings } from "@/lib/site-settings"
 import { isAdmin } from "@/lib/auth/admin"
 import { revalidateTag } from "next/cache"
+import { validateAdminOrigin } from "@/lib/csrf"
 
 // GET — return current settings (merged with defaults)
 export async function GET() {
@@ -14,6 +15,8 @@ export async function GET() {
 
 // PUT — upsert one or more settings keys
 export async function PUT(req: NextRequest) {
+  const csrf = validateAdminOrigin(req)
+  if (csrf) return csrf
   if (!(await isAdmin())) return NextResponse.json({ error: "Unauthorised" }, { status: 401 })
 
   const body = await req.json() as Partial<SiteSettings>

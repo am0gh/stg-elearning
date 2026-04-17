@@ -11,6 +11,7 @@ import {
   getCertificateSettings,
   type CertificateSettings,
 } from "@/lib/certificate-settings"
+import { validateAdminOrigin } from "@/lib/csrf"
 
 export async function GET() {
   if (!(await isAdmin())) {
@@ -21,6 +22,8 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  const csrf = validateAdminOrigin(req)
+  if (csrf) return csrf
   if (!(await isAdmin())) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 })
   }

@@ -24,11 +24,12 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
 
   if (!course) notFound()
 
-  // Get lessons
+  // Get published lessons only — drafts are never served to students
   const { data: lessons } = await supabase
     .from("lessons")
     .select("*")
     .eq("course_id", id)
+    .eq("is_published", true)
     .order("order_index", { ascending: true })
 
   if (!lessons || lessons.length === 0) notFound()
@@ -44,14 +45,14 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
     if (!user) {
       redirect(`/auth/login?redirect=/courses/${id}/learn?lesson=${currentLessonId}`)
     }
-    // And require enrollment
+    // And require an active (non-refunded) enrollment
     const { data: enrollment } = await supabase
       .from("enrollments")
-      .select("id")
+      .select("id, refunded_at")
       .eq("user_id", user.id)
       .eq("course_id", id)
       .single()
-    if (!enrollment) {
+    if (!enrollment || enrollment.refunded_at) {
       redirect(`/courses/${id}`)
     }
   }
@@ -72,11 +73,12 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
   if (user) {
     const { data: enrollment } = await supabase
       .from("enrollments")
-      .select("id, completed_at")
+      .select("id, completed_at, refunded_at")
       .eq("user_id", user.id)
       .eq("course_id", id)
       .single()
-    enrollmentId = enrollment?.id ?? null
+    // Only expose enrollmentId for active enrollments (no certificate for refunded)
+    enrollmentId = enrollment && !enrollment.refunded_at ? enrollment.id : null
   }
 
   const currentLesson = requestedLesson

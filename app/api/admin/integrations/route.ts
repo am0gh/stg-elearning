@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { isAdmin } from "@/lib/auth/admin"
+import { validateAdminOrigin } from "@/lib/csrf"
 
 const INTEGRATION_KEYS = ["n8n_webhook_url"] as const
 type IntegrationKey = (typeof INTEGRATION_KEYS)[number]
@@ -30,6 +31,8 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  const csrf = validateAdminOrigin(req)
+  if (csrf) return csrf
   if (!(await isAdmin())) return NextResponse.json({ error: "Unauthorised" }, { status: 401 })
 
   const body = await req.json() as Partial<Record<IntegrationKey, string>>

@@ -11,6 +11,10 @@
  *   user.signup          → after email confirmation
  *   enrollment.created   → after free enroll OR successful Stripe payment
  *   course.completed     → when student finishes all lessons
+ *
+ * Reliability:
+ *   Retries up to MAX_RETRIES times with exponential back-off.
+ *   All errors are swallowed so a webhook failure never breaks the user flow.
  */
 
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -53,11 +57,33 @@ export type NotificationEvent =
       }
     }
 
+// ─── Retry config ─────────────────────────────────────────────────────────────
+
+/** Maximum number of delivery attempts (1 initial + N-1 retries) */
+const MAX_RETRIES = 3
+
+/** Per-attempt timeout in milliseconds */
+const ATTEMPT_TIMEOUT_MS = 8_000
+
+/**
+ * Delay before the Nth retry (0-indexed).
+ * Exponential back-off: 1s → 2s → 4s …
+ */
+function retryDelayMs(attempt: number): number {
+  return Math.min(1_000 * 2 ** attempt, 30_000)
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 // ─── Core dispatcher ──────────────────────────────────────────────────────────
 
 /**
- * Sends a webhook event to n8n. Fire-and-forget — never throws,
- * so a webhook failure never breaks the user-facing flow.
+ * Sends a webhook event to n8n with automatic retry on transient failures.
+ *
+ * Fire-and-forget — never throws, so a webhook failure never breaks the
+ * user-facing flow. Errors are logged server-side for debugging.
  */
 export async function sendNotification(notification: NotificationEvent): Promise<void> {
   try {
@@ -72,8 +98,7 @@ export async function sendNotification(notification: NotificationEvent): Promise
     const webhookUrl = data?.value as string | undefined
 
     if (!webhookUrl) {
-      // Not configured yet — log quietly and return
-      console.log(`[notifications] n8n webhook not configured, skipping event: ${notification.event}`)
+      console.log(`[notifications] n8n webhook not configured, skipping: ${notification.event}`)
       return
     }
 
@@ -83,21 +108,53 @@ export async function sendNotification(notification: NotificationEvent): Promise
       data: notification.data,
     }
 
-    const res = await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      // Abort if n8n takes too long — never block the main request
-      signal: AbortSignal.timeout(8000),
-    })
+    let lastError: unknown
 
-    if (!res.ok) {
-      console.error(`[notifications] n8n webhook returned ${res.status} for event: ${notification.event}`)
-    } else {
-      console.log(`[notifications] ✓ fired ${notification.event}`)
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        const delay = retryDelayMs(attempt - 1)
+        console.log(`[notifications] retrying ${notification.event} (attempt ${attempt + 1}/${MAX_RETRIES}) in ${delay}ms`)
+        await sleep(delay)
+      }
+
+      try {
+        const res = await fetch(webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+        })
+
+        if (res.ok) {
+          console.log(`[notifications] ✓ fired ${notification.event}${attempt > 0 ? ` (after ${attempt} retries)` : ""}`)
+          return
+        }
+
+        // 4xx errors from the webhook endpoint are client errors — don't retry
+        if (res.status >= 400 && res.status < 500) {
+          console.error(`[notifications] ${notification.event} rejected by webhook (${res.status}) — not retrying`)
+          return
+        }
+
+        // 5xx — server-side error, worth retrying
+        lastError = new Error(`HTTP ${res.status}`)
+        console.warn(`[notifications] ${notification.event} got ${res.status} on attempt ${attempt + 1}`)
+
+      } catch (err) {
+        // Network error, timeout, DNS failure — all worth retrying
+        lastError = err
+        console.warn(`[notifications] ${notification.event} network error on attempt ${attempt + 1}:`, err)
+      }
     }
+
+    // All attempts exhausted
+    console.error(
+      `[notifications] ✗ giving up on ${notification.event} after ${MAX_RETRIES} attempts. Last error:`,
+      lastError
+    )
+
   } catch (err) {
-    // Swallow all errors — webhook failure should never crash the app
-    console.error(`[notifications] failed to send ${notification.event}:`, err)
+    // Outermost catch — e.g. Supabase error reading the webhook URL
+    console.error(`[notifications] unexpected error for ${notification.event}:`, err)
   }
 }

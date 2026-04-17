@@ -26,6 +26,7 @@ interface LessonFormData {
   order_index: number
   duration_minutes: number
   is_free: boolean
+  is_published: boolean
   video_url: string
   content_intro: string
   content_notes: string
@@ -39,6 +40,7 @@ const DEFAULT: LessonFormData = {
   order_index: 1,
   duration_minutes: 10,
   is_free: false,
+  is_published: false, // new lessons start as draft
   video_url: "",
   content_intro: "",
   content_notes: "",
@@ -599,28 +601,56 @@ export function LessonForm({ courseId, lessonId, initial }: LessonFormProps) {
           </button>
         </Section>
 
-        {/* ── Submit ── */}
-        <div className="flex items-center gap-4 border-t border-zinc-800 pt-6">
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex items-center gap-2 rounded-lg bg-amber-500 px-6 py-2.5 text-sm font-bold text-black hover:bg-amber-400 disabled:opacity-50"
-          >
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {saving ? "Saving…" : isEdit ? "Save Changes" : "Create Lesson"}
-          </button>
-          <Link
-            href={`/admin/courses/${courseId}`}
-            className="text-sm text-zinc-500 hover:text-white"
-          >
-            Cancel
-          </Link>
-          {success && (
-            <span className="text-sm font-semibold text-green-400">✓ {success}</span>
-          )}
-          {error && (
-            <span className="text-sm text-red-400">{error}</span>
-          )}
+        {/* ── Publish status + Submit ── */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="font-semibold text-white">Publish Status</h2>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                Draft lessons are only visible to you in the admin panel — students can&apos;t see or access them.
+              </p>
+            </div>
+            {/* Toggle */}
+            <button
+              type="button"
+              onClick={() => set("is_published", !form.is_published)}
+              className="flex shrink-0 items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors"
+              style={
+                form.is_published
+                  ? { borderColor: "rgba(34,197,94,0.4)", background: "rgba(34,197,94,0.1)", color: "#22c55e" }
+                  : { borderColor: "rgba(113,113,122,0.4)", background: "rgba(113,113,122,0.1)", color: "#71717a" }
+              }
+            >
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-full"
+                style={{ background: form.is_published ? "#22c55e" : "#71717a" }}
+              />
+              {form.is_published ? "Published" : "Draft"}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-4 border-t border-zinc-800 pt-4">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex items-center gap-2 rounded-lg bg-amber-500 px-6 py-2.5 text-sm font-bold text-black hover:bg-amber-400 disabled:opacity-50"
+            >
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {saving ? "Saving…" : isEdit ? "Save Changes" : "Create Lesson"}
+            </button>
+            <Link
+              href={`/admin/courses/${courseId}`}
+              className="text-sm text-zinc-500 hover:text-white"
+            >
+              Cancel
+            </Link>
+            {success && (
+              <span className="text-sm font-semibold text-green-400">✓ {success}</span>
+            )}
+            {error && (
+              <span className="text-sm text-red-400">{error}</span>
+            )}
+          </div>
         </div>
       </form>
     </div>

@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { DEFAULT_CONTENT, getHomepageContent } from "@/lib/homepage-content"
 import { isAdmin } from "@/lib/auth/admin"
 import { revalidateTag } from "next/cache"
+import { validateAdminOrigin } from "@/lib/csrf"
 
 // GET — return current content (merged with defaults)
 export async function GET() {
@@ -12,6 +13,8 @@ export async function GET() {
 
 // PUT — upsert any subset of content keys
 export async function PUT(req: NextRequest) {
+  const csrf = validateAdminOrigin(req)
+  if (csrf) return csrf
   if (!(await isAdmin())) return NextResponse.json({ error: "Unauthorised" }, { status: 401 })
 
   const body = await req.json() as Record<string, string>
