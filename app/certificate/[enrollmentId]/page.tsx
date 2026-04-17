@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getCertificateSettings } from "@/lib/certificate-settings"
 import { CertificatePage } from "./certificate-page"
 
 interface PageProps {
@@ -29,8 +30,7 @@ export default async function Certificate({ params }: PageProps) {
       courses (
         title,
         level,
-        instructor_name,
-        instructor_avatar
+        instructor_name
       )
     `)
     .eq("id", enrollmentId)
@@ -45,7 +45,7 @@ export default async function Certificate({ params }: PageProps) {
 
   if (!course) notFound()
 
-  // Get student name
+  // Student name
   const { data: profile } = await admin
     .from("profiles")
     .select("full_name")
@@ -57,14 +57,28 @@ export default async function Certificate({ params }: PageProps) {
     ?? user.email?.split("@")[0]
     ?? "Student"
 
+  const levelLabel = course.level
+    ? course.level.replace("-", " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
+    : ""
+
+  const completedDate = new Date(enrollment.completed_at).toLocaleDateString("nl-NL", {
+    year: "numeric", month: "long", day: "numeric",
+  })
+
+  // Load certificate design settings
+  const settings = await getCertificateSettings()
+
   return (
     <CertificatePage
-      studentName={studentName}
-      courseTitle={course.title}
-      courseLevel={course.level}
-      instructorName={course.instructor_name}
-      completedAt={enrollment.completed_at}
-      enrollmentId={enrollmentId}
+      settings={settings}
+      data={{
+        studentName,
+        courseTitle:    course.title,
+        levelLabel,
+        instructorName: course.instructor_name,
+        completedDate,
+        enrollmentId,
+      }}
     />
   )
 }

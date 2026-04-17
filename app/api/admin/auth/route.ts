@@ -1,33 +1,54 @@
 import { NextRequest, NextResponse } from "next/server"
-import { randomBytes } from "crypto"
+import { createHmac, timingSafeEqual } from "crypto"
 
-// Anchor to globalThis so the store is shared across all module instances
-// in the same Node.js process (Next.js can bundle route handlers separately).
-const g = globalThis as typeof globalThis & {
-  __adminSessions?: Map<string, { expiresAt: number }>
-}
-if (!g.__adminSessions) {
-  g.__adminSessions = new Map()
-}
-const SESSION_STORE = g.__adminSessions
+const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 7 // 7 days
 
-// Clean up expired sessions periodically
-function pruneExpired() {
-  const now = Date.now()
-  for (const [token, { expiresAt }] of SESSION_STORE.entries()) {
-    if (expiresAt < now) SESSION_STORE.delete(token)
-  }
+function sign(payload: string, secret: string): string {
+  return createHmac("sha256", secret).update(payload).digest("hex")
 }
 
+function createToken(secret: string): string {
+  const payload = JSON.stringify({ iat: Date.now() })
+  const encoded = Buffer.from(payload).toString("base64url")
+  const sig = sign(encoded, secret)
+  return `${encoded}.${sig}`
+}
+
+/**
+ * Stateless token validation — no server-side session store required.
+ * Works correctly across Vercel serverless cold starts.
+ */
 export function isValidAdminToken(token: string | undefined): boolean {
   if (!token) return false
-  pruneExpired()
-  const session = SESSION_STORE.get(token)
-  if (!session) return false
-  if (session.expiresAt < Date.now()) {
-    SESSION_STORE.delete(token)
+  const secret = process.env.ADMIN_PASSWORD
+  if (!secret) return false
+
+  const dotIndex = token.lastIndexOf(".")
+  if (dotIndex === -1) return false
+  const encoded = token.slice(0, dotIndex)
+  const sig = token.slice(dotIndex + 1)
+  if (!encoded || !sig) return false
+
+  // Timing-safe HMAC comparison
+  try {
+    const expectedSig = sign(encoded, secret)
+    const sigBuf = Buffer.from(sig, "hex")
+    const expectedBuf = Buffer.from(expectedSig, "hex")
+    if (sigBuf.length !== expectedBuf.length) return false
+    if (!timingSafeEqual(sigBuf, expectedBuf)) return false
+  } catch {
     return false
   }
+
+  // Verify expiry
+  try {
+    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"))
+    if (typeof payload.iat !== "number") return false
+    if (Date.now() - payload.iat > SESSION_DURATION_MS) return false
+  } catch {
+    return false
+  }
+
   return true
 }
 
@@ -41,14 +62,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (typeof password !== "string" || password !== adminPassword) {
-    // Constant-time-ish: always return same response shape for wrong password
     return NextResponse.json({ error: "Incorrect password" }, { status: 401 })
   }
 
-  const token = randomBytes(32).toString("hex")
-  const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 7 // 7 days
-
-  SESSION_STORE.set(token, { expiresAt })
+  const token = createToken(adminPassword)
 
   const res = NextResponse.json({ ok: true })
   res.cookies.set("admin_session", token, {

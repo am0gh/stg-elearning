@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { BarChart2, BookOpen, FileText, LayoutDashboard, Paintbrush, Tag, Webhook } from "lucide-react"
+import { Award, BarChart2, BookOpen, FileText, LayoutDashboard, Paintbrush, Tag, Webhook } from "lucide-react"
 import { SignOutButton } from "./sign-out-button"
 import { isAdmin } from "@/lib/auth/admin"
 
@@ -72,6 +72,14 @@ export default async function AdminLayout({
           >
             <BarChart2 className="h-4 w-4" />
             Analytics
+          </Link>
+
+          <Link
+            href="/admin/certificate"
+            className="flex items-center gap-2.5 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-white"
+          >
+            <Award className="h-4 w-4" />
+            Certificate
           </Link>
 
           <Link
