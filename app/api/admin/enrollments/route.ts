@@ -25,12 +25,17 @@ export async function GET(req: NextRequest) {
 
     const admin = createAdminClient()
 
-    // ── 1. Fetch enrollments (flat columns only, no relational joins) ────────
-    const { data: rows, error: enrollmentsError } = await admin
+    // ── 1. Fetch enrollments — only guaranteed-stable columns ───────────────
+    // Selecting only columns that have existed since the initial schema
+    // avoids 400s if a migration hasn't been applied to this environment yet.
+    const baseQuery = admin
       .from("enrollments")
-      .select("id, user_id, course_id, enrolled_at, completed_at, discount_code_id")
+      .select("id, user_id, course_id, enrolled_at, completed_at")
       .order("enrolled_at", { ascending: false })
-      .then(res => courseFilter ? { ...res, data: (res.data ?? []).filter(r => r.course_id === courseFilter) } : res)
+
+    const { data: rows, error: enrollmentsError } = courseFilter
+      ? await baseQuery.eq("course_id", courseFilter)
+      : await baseQuery
 
     if (enrollmentsError) {
       console.error("[admin/enrollments] enrollments query failed:", enrollmentsError)
@@ -38,11 +43,24 @@ export async function GET(req: NextRequest) {
     }
 
     const allRows = rows ?? []
+    const ids = allRows.map(r => r.id)
 
-    // ── 2. Try to get refunded_at (may not exist if migration not run yet) ──
+    // ── 2. Optional: discount_code_id (added in migration 20260417) ──────────
+    const discountCodeMap: Record<string, boolean> = {}
+    if (ids.length > 0) {
+      const { data: discountRows } = await admin
+        .from("enrollments")
+        .select("id, discount_code_id")
+        .in("id", ids)
+      for (const r of discountRows ?? []) {
+        const rAny = r as Record<string, unknown>
+        discountCodeMap[r.id] = !!(rAny.discount_code_id)
+      }
+    }
+
+    // ── 3. Optional: refunded_at (added in migration 20260417_enrollment_refunds) ──
     const refundedAtMap: Record<string, string | null> = {}
-    if (allRows.length > 0) {
-      const ids = allRows.map(r => r.id)
+    if (ids.length > 0) {
       const { data: refundRows, error: refundError } = await admin
         .from("enrollments")
         .select("id, refunded_at")
@@ -50,13 +68,12 @@ export async function GET(req: NextRequest) {
 
       if (!refundError && refundRows) {
         for (const r of refundRows) {
-          // refunded_at may be absent from the type if migration isn't applied yet
           const rAny = r as Record<string, unknown>
           refundedAtMap[r.id] = (rAny.refunded_at as string | null) ?? null
         }
       }
-      // If the column doesn't exist yet, refundError will be set — we silently
-      // skip and treat all enrollments as active (refundedAt: null).
+      // If the column doesn't exist yet refundError is set — silently skip,
+      // treat all enrollments as active (refundedAt: null).
     }
 
     // ── 3. Apply refunded filter in JS ────────────────────────────────────────
@@ -117,7 +134,7 @@ export async function GET(req: NextRequest) {
       enrolledAt:       e.enrolled_at,
       completedAt:      e.completed_at ?? null,
       refundedAt:       refundedAtMap[e.id] ?? null,
-      enrollmentSource: e.discount_code_id ? "discount" : "stripe",
+      enrollmentSource: discountCodeMap[e.id] ? "discount" : "stripe",
       userId:           e.user_id,
       userEmail:        emailMap[e.user_id] ?? "",
       userName:         nameMap[e.user_id]  ?? null,
